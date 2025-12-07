@@ -22,9 +22,10 @@ export function FileCard({ file, index }: FileCardProps) {
   } = useSortable({ id: file.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? undefined : transition,
     zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : 1,
   };
 
   return (

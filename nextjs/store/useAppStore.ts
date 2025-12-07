@@ -141,7 +141,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   sortFiles: (order: SortOrder) => {
     const files = [...get().files];
     files.sort((a, b) => {
-      const comparison = a.name.localeCompare(b.name);
+      // Use natural sort with numeric option for proper alphabetical ordering
+      const comparison = a.name.localeCompare(b.name, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
       return order === "asc" ? comparison : -comparison;
     });
 

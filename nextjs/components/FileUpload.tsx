@@ -29,7 +29,7 @@ export function FileUpload() {
   return (
     <div
       {...getRootProps()}
-      className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 cursor-pointer transition-all ${
+      className={`h-full w-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 cursor-pointer transition-all ${
         isDragActive
           ? "border-[var(--hl-bd)] bg-hl/10"
           : "border-sec hover:border-[var(--hl-bd)] hover:bg-sec"
