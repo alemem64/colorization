@@ -169,3 +169,77 @@ export function base64ToFile(base64: string, mimeType: string, filename: string)
   const byteArray = new Uint8Array(byteNumbers);
   return new File([byteArray], filename, { type: mimeType });
 }
+
+/**
+ * Error types for localization
+ */
+export type ApiErrorType = 
+  | "quotaExceeded"
+  | "rateLimited"
+  | "invalidApiKey"
+  | "networkError"
+  | "serverError"
+  | "noImageGenerated"
+  | "unknownError";
+
+export interface ParsedApiError {
+  type: ApiErrorType;
+  retryAfterSeconds?: number;
+}
+
+/**
+ * Parse API error and return localized error type
+ */
+export function parseApiError(error: unknown): ParsedApiError {
+  const errorStr = String(error);
+  const errorObj = error as { message?: string; status?: string; code?: number };
+  
+  // Check for quota/rate limit errors
+  if (
+    errorStr.includes("RESOURCE_EXHAUSTED") ||
+    errorStr.includes("quota") ||
+    errorStr.includes("429") ||
+    errorObj.code === 429
+  ) {
+    // Try to extract retry time
+    const retryMatch = errorStr.match(/retry in (\d+(?:\.\d+)?)/i);
+    const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : undefined;
+    
+    if (retrySeconds) {
+      return { type: "rateLimited", retryAfterSeconds: retrySeconds };
+    }
+    return { type: "quotaExceeded" };
+  }
+  
+  // Check for invalid API key
+  if (
+    errorStr.includes("INVALID_API_KEY") ||
+    errorStr.includes("API_KEY_INVALID") ||
+    errorStr.includes("401") ||
+    errorStr.includes("UNAUTHENTICATED")
+  ) {
+    return { type: "invalidApiKey" };
+  }
+  
+  // Check for network errors
+  if (
+    errorStr.includes("NetworkError") ||
+    errorStr.includes("Failed to fetch") ||
+    errorStr.includes("ENOTFOUND") ||
+    errorStr.includes("ETIMEDOUT")
+  ) {
+    return { type: "networkError" };
+  }
+  
+  // Check for server errors
+  if (
+    errorStr.includes("500") ||
+    errorStr.includes("502") ||
+    errorStr.includes("503") ||
+    errorStr.includes("INTERNAL")
+  ) {
+    return { type: "serverError" };
+  }
+  
+  return { type: "unknownError" };
+}

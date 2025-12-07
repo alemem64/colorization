@@ -22,7 +22,8 @@ export function Sidebar({ mode }: SidebarProps) {
     toLanguage,
     isProcessing,
     processedCount,
-    error,
+    errorType,
+    errorRetrySeconds,
     setApiKey,
     setBatchSize,
     setResolution,
@@ -164,10 +165,14 @@ export function Sidebar({ mode }: SidebarProps) {
       {/* Action buttons */}
       <div className="mt-6 space-y-3">
         {/* Error message */}
-        {error && (
+        {errorType && (
           <div className="flex items-center gap-2 p-3 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span className="break-words">{error}</span>
+            <span className="break-words">
+              {errorType === "rateLimited" && errorRetrySeconds
+                ? t.errors.rateLimited.replace("{seconds}", String(errorRetrySeconds))
+                : t.errors[errorType]}
+            </span>
           </div>
         )}
 

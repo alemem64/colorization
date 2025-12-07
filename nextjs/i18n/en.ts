@@ -78,6 +78,17 @@ export const en = {
     "3k": "3K",
     "4k": "4K",
   },
+
+  // Error messages
+  errors: {
+    quotaExceeded: "API quota exceeded. Please wait or check your billing.",
+    rateLimited: "Too many requests. Please wait {seconds} seconds.",
+    invalidApiKey: "Invalid API key. Please check your API key.",
+    networkError: "Network error. Please check your connection.",
+    serverError: "Server error. Please try again later.",
+    noImageGenerated: "No image was generated. Please try again.",
+    unknownError: "An unexpected error occurred.",
+  },
 } as const;
 
 export type TranslationKeys = typeof en;

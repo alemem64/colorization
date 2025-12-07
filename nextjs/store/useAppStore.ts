@@ -5,7 +5,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { processTranslation, TranslateConfig } from "@/services/translate";
 import { processColorization } from "@/services/colorize";
-import { base64ToBlob, base64ToFile, ProcessedResult, Resolution as ApiResolution } from "@/services/core";
+import { base64ToBlob, base64ToFile, ProcessedResult, Resolution as ApiResolution, parseApiError, ApiErrorType } from "@/services/core";
 
 export type FileStatus = "pending" | "processing" | "done";
 
@@ -42,7 +42,8 @@ interface AppState {
   isProcessing: boolean;
   processedCount: number;
   currentMode: ProcessingMode | null;
-  error: string | null;
+  errorType: ApiErrorType | null;
+  errorRetrySeconds?: number;
 
   // Actions
   addFiles: (files: File[]) => void;
@@ -88,7 +89,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   isProcessing: false,
   processedCount: 0,
   currentMode: null,
-  error: null,
+  errorType: null,
+  errorRetrySeconds: undefined,
 
   // File actions
   addFiles: (newFiles: File[]) => {
@@ -137,7 +139,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       isProcessing: false,
       processedCount: 0,
       currentMode: null,
-      error: null,
+      errorType: null,
+      errorRetrySeconds: undefined,
     });
   },
 
@@ -232,7 +235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { files, apiKey, batchSize, resolution, fromLanguage, toLanguage } = get();
     if (files.length === 0) return;
     if (!apiKey) {
-      set({ error: "API key is required" });
+      set({ errorType: "invalidApiKey" });
       return;
     }
 
@@ -240,7 +243,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       isProcessing: true, 
       processedCount: 0, 
       currentMode: mode,
-      error: null,
+      errorType: null,
+      errorRetrySeconds: undefined,
     });
 
     // Reset all files to pending and clear processed data
@@ -288,7 +292,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (error) {
       console.error("Processing error:", error);
-      set({ error: error instanceof Error ? error.message : "Processing failed" });
+      const parsed = parseApiError(error);
+      set({ 
+        errorType: parsed.type, 
+        errorRetrySeconds: parsed.retryAfterSeconds 
+      });
     } finally {
       set({ isProcessing: false });
     }
@@ -330,7 +338,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       isProcessing: false,
       processedCount: 0,
       currentMode: null,
-      error: null,
+      errorType: null,
+      errorRetrySeconds: undefined,
     }));
   },
 }));
