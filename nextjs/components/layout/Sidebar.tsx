@@ -3,7 +3,7 @@
 import { useTranslation } from "@/i18n/useTranslation";
 import { useAppStore, ProcessingMode, Resolution } from "@/store/useAppStore";
 import { Eye, EyeOff, Trash2, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SidebarProps {
   mode: ProcessingMode;
@@ -12,6 +12,8 @@ interface SidebarProps {
 export function Sidebar({ mode }: SidebarProps) {
   const t = useTranslation();
   const [showApiKey, setShowApiKey] = useState(false);
+  const [totalElapsed, setTotalElapsed] = useState(0);
+  const [batchElapsed, setBatchElapsed] = useState(0);
 
   const {
     files,
@@ -24,6 +26,10 @@ export function Sidebar({ mode }: SidebarProps) {
     processedCount,
     errorType,
     errorRetrySeconds,
+    processingStartTime,
+    currentBatchStartTime,
+    currentBatchIndex,
+    totalBatches,
     setApiKey,
     setBatchSize,
     setResolution,
@@ -34,9 +40,42 @@ export function Sidebar({ mode }: SidebarProps) {
     clearFiles,
   } = useAppStore();
 
+  // Timer effects
+  useEffect(() => {
+    if (isProcessing && processingStartTime) {
+      const interval = setInterval(() => {
+        setTotalElapsed((Date.now() - processingStartTime) / 1000);
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      setTotalElapsed(0);
+    }
+  }, [isProcessing, processingStartTime]);
+
+  useEffect(() => {
+    if (isProcessing && currentBatchStartTime) {
+      const interval = setInterval(() => {
+        setBatchElapsed((Date.now() - currentBatchStartTime) / 1000);
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      setBatchElapsed(0);
+    }
+  }, [isProcessing, currentBatchStartTime]);
+
   const maxBatchSize = mode === "colorize" ? 5 : 16;
   const allDone = files.length > 0 && files.every((f) => f.status === "done");
-  const progress = files.length > 0 ? (processedCount / files.length) * 100 : 0;
+  
+  // Smooth progress: completed files + current batch progress (50s per batch)
+  const completedProgress = files.length > 0 ? (processedCount / files.length) * 100 : 0;
+  const currentBatchFiles = files.filter((f) => f.status === "processing").length;
+  const batchContribution = files.length > 0 && currentBatchFiles > 0
+    ? ((currentBatchFiles / files.length) * 100) * Math.min(batchElapsed / 50, 1)
+    : 0;
+  const progress = Math.min(completedProgress + batchContribution, 100);
+
+  // Batch progress: smooth fill based on 50s expected time
+  const batchProgress = Math.min((batchElapsed / 50) * 100, 100);
 
   const handleAction = async () => {
     if (allDone) {
@@ -176,13 +215,50 @@ export function Sidebar({ mode }: SidebarProps) {
           </div>
         )}
 
-        {/* Progress bar */}
+        {/* Processing status with timers */}
         {isProcessing && (
-          <div className="w-full bg-ter rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-hl h-full transition-all duration-300"
-              style={{ width: `${progress}%`, backgroundColor: "var(--hl-bd)" }}
-            />
+          <div className="space-y-3">
+            {/* Total progress */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-sec font-medium">
+                  Processing... {progress.toFixed(0)}% {totalElapsed.toFixed(1)}s
+                </span>
+                <span className="text-ter text-xs">
+                  {processedCount}/{files.length}
+                </span>
+              </div>
+              <div className="w-full bg-ter rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full transition-all duration-300"
+                  style={{ width: `${progress}%`, backgroundColor: "var(--hl-bd)" }}
+                />
+              </div>
+            </div>
+
+            {/* Batch progress */}
+            {currentBatchIndex > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-ter">
+                    Batch {currentBatchIndex}/{totalBatches}
+                  </span>
+                  <span className="text-ter font-mono">
+                    {batchElapsed.toFixed(1)}s
+                  </span>
+                </div>
+                <div className="w-full bg-ter rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="h-full"
+                    style={{ 
+                      width: `${batchProgress}%`, 
+                      backgroundColor: "var(--hl-bd)",
+                      opacity: 0.7,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

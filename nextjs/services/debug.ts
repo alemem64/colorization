@@ -47,6 +47,9 @@ function sanitizeForLogging(data: LogData): LogData {
           ...data[key],
           data: `[BASE64_DATA_${data[key].data.length}_CHARS]`,
         };
+      } else if (key === "thoughtSignature" && typeof data[key] === "string" && data[key].length > 100) {
+        // Thought signature is also base64 encoded
+        sanitized[key] = `[THOUGHT_SIG_${data[key].length}_CHARS]`;
       } else {
         sanitized[key] = sanitizeForLogging(data[key]);
       }
@@ -58,12 +61,25 @@ function sanitizeForLogging(data: LogData): LogData {
 }
 
 /**
- * Log storage in browser's localStorage/IndexedDB via downloadable JSON
- * Since we're in browser, we'll create downloadable log files
+ * Send log to server API
+ */
+async function sendLogToServer(sessionId: string, requestId: string, type: "request" | "response", data: LogData): Promise<void> {
+  try {
+    await fetch("/api/logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, requestId, type, data }),
+    });
+  } catch (error) {
+    console.error("[DEBUG] Failed to send log to server:", error);
+  }
+}
+
+/**
+ * Debug logger that saves logs to server-side files
  */
 class DebugLogger {
   private currentSessionId: string | null = null;
-  private logs: Map<string, { req: LogData | null; res: LogData | null }> = new Map();
 
   constructor() {
     this.currentSessionId = null;
@@ -74,7 +90,18 @@ class DebugLogger {
    */
   startSession(): string {
     this.currentSessionId = getTimestamp();
+    console.log(`[DEBUG] Session started: ${this.currentSessionId}`);
     return this.currentSessionId;
+  }
+
+  /**
+   * Get current session ID
+   */
+  getSessionId(): string {
+    if (!this.currentSessionId) {
+      this.startSession();
+    }
+    return this.currentSessionId!;
   }
 
   /**
@@ -84,11 +111,10 @@ class DebugLogger {
     if (!LOGGING) return;
 
     const sanitizedData = sanitizeForLogging(data);
-    const existing = this.logs.get(requestId) || { req: null, res: null };
-    existing.req = sanitizedData;
-    this.logs.set(requestId, existing);
-
     console.log(`[DEBUG] Request ${requestId}:`, sanitizedData);
+
+    const sessionId = this.getSessionId();
+    sendLogToServer(sessionId, requestId, "request", sanitizedData);
   }
 
   /**
@@ -98,51 +124,16 @@ class DebugLogger {
     if (!LOGGING) return;
 
     const sanitizedData = sanitizeForLogging(data);
-    const existing = this.logs.get(requestId) || { req: null, res: null };
-    existing.res = sanitizedData;
-    this.logs.set(requestId, existing);
-
     console.log(`[DEBUG] Response ${requestId}:`, sanitizedData);
+
+    const sessionId = this.getSessionId();
+    sendLogToServer(sessionId, requestId, "response", sanitizedData);
   }
 
   /**
-   * Get all logs for download
+   * Clear session
    */
-  getAllLogs(): { sessionId: string | null; logs: Record<string, { req: LogData | null; res: LogData | null }> } {
-    const logsObject: Record<string, { req: LogData | null; res: LogData | null }> = {};
-    this.logs.forEach((value, key) => {
-      logsObject[key] = value;
-    });
-
-    return {
-      sessionId: this.currentSessionId,
-      logs: logsObject,
-    };
-  }
-
-  /**
-   * Download logs as JSON file
-   */
-  downloadLogs(): void {
-    if (!LOGGING) return;
-
-    const allLogs = this.getAllLogs();
-    const blob = new Blob([JSON.stringify(allLogs, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `logs_${this.currentSessionId || getTimestamp()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  /**
-   * Clear all logs
-   */
-  clearLogs(): void {
-    this.logs.clear();
+  clearSession(): void {
     this.currentSessionId = null;
   }
 }

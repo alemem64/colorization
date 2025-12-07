@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTranslation } from "@/i18n/useTranslation";
@@ -19,8 +20,15 @@ export function TopNav() {
           <div className="flex items-center space-x-8">
             <Link
               href="/"
-              className="text-xl font-bold text-pri hover:text-hl transition-colors"
+              className="flex items-center gap-2 text-xl font-bold text-pri hover:text-hl transition-colors"
             >
+              <Image
+                src="/nano_manana_logo.png"
+                alt="Nano Manana Logo"
+                width={32}
+                height={32}
+                className="rounded-md"
+              />
               {t.appName}
             </Link>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslation } from "@/i18n/useTranslation";
 import { Paintbrush, Languages } from "lucide-react";
 
@@ -10,9 +11,18 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center px-4 py-24">
       {/* Hero */}
-      <h1 className="text-4xl md:text-5xl font-bold text-pri text-center mb-4">
-        {t.appName}
-      </h1>
+      <div className="flex items-center gap-4 mb-4">
+        <Image
+          src="/nano_manana_logo.png"
+          alt="Nano Manana Logo"
+          width={64}
+          height={64}
+          className="rounded-lg"
+        />
+        <h1 className="text-4xl md:text-5xl font-bold text-pri text-center">
+          {t.appName}
+        </h1>
+      </div>
       <p className="text-lg text-sec text-center mb-16 max-w-md">
         {t.home.hero}
       </p>

@@ -7,7 +7,7 @@ import { processTranslation, TranslateConfig } from "@/services/translate";
 import { processColorization } from "@/services/colorize";
 import { base64ToBlob, base64ToFile, ProcessedResult, Resolution as ApiResolution, parseApiError, ApiErrorType } from "@/services/core";
 
-export type FileStatus = "pending" | "processing" | "done";
+export type FileStatus = "pending" | "waiting" | "processing" | "done";
 
 export interface ManagedFile {
   id: string;
@@ -16,6 +16,8 @@ export interface ManagedFile {
   preview: string;
   status: FileStatus;
   order: number;
+  // Processing state
+  processingStartTime?: number;
   // Processed result
   processedPreview?: string;
   processedFile?: File;
@@ -44,6 +46,10 @@ interface AppState {
   currentMode: ProcessingMode | null;
   errorType: ApiErrorType | null;
   errorRetrySeconds?: number;
+  processingStartTime?: number;
+  currentBatchStartTime?: number;
+  currentBatchIndex: number;
+  totalBatches: number;
 
   // Actions
   addFiles: (files: File[]) => void;
@@ -62,6 +68,7 @@ interface AppState {
   setToLanguage: (lang: string) => void;
 
   // Processing actions
+  setFilesWaiting: (indices: number[]) => void;
   setFilesProcessing: (indices: number[]) => void;
   setFileComplete: (result: ProcessedResult) => void;
   startProcessing: (mode: ProcessingMode) => Promise<void>;
@@ -91,6 +98,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentMode: null,
   errorType: null,
   errorRetrySeconds: undefined,
+  processingStartTime: undefined,
+  currentBatchStartTime: undefined,
+  currentBatchIndex: 0,
+  totalBatches: 0,
 
   // File actions
   addFiles: (newFiles: File[]) => {
@@ -141,6 +152,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentMode: null,
       errorType: null,
       errorRetrySeconds: undefined,
+      processingStartTime: undefined,
+      currentBatchStartTime: undefined,
+      currentBatchIndex: 0,
+      totalBatches: 0,
     });
   },
 
@@ -190,11 +205,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   setToLanguage: (lang: string) => set({ toLanguage: lang }),
 
   // Processing helper actions
-  setFilesProcessing: (indices: number[]) => {
+  setFilesWaiting: (indices: number[]) => {
     set((state) => ({
       files: state.files.map((f, idx) =>
-        indices.includes(idx) ? { ...f, status: "processing" as FileStatus } : f
+        indices.includes(idx) ? { ...f, status: "waiting" as FileStatus } : f
       ),
+    }));
+  },
+
+  setFilesProcessing: (indices: number[]) => {
+    const now = Date.now();
+    set((state) => ({
+      files: state.files.map((f, idx) =>
+        indices.includes(idx) 
+          ? { ...f, status: "processing" as FileStatus, processingStartTime: now } 
+          : f
+      ),
+      currentBatchStartTime: now,
+      currentBatchIndex: state.currentBatchIndex + 1,
     }));
   },
 
@@ -239,18 +267,42 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
+    // Calculate total batches based on mode
+    // For translate: simple batches of batchSize
+    // For colorize: first page alone, then batchSize-1 pages, then batchSize pages each
+    let totalBatches: number;
+    if (mode === "translate") {
+      totalBatches = Math.ceil(files.length / batchSize);
+    } else {
+      // Colorize: 1 (first page) + 1 (pages 2 to batchSize) + remaining batches
+      if (files.length === 1) {
+        totalBatches = 1;
+      } else if (files.length <= batchSize) {
+        totalBatches = 2;
+      } else {
+        const remainingAfterBatch2 = files.length - batchSize;
+        totalBatches = 2 + Math.ceil(remainingAfterBatch2 / batchSize);
+      }
+    }
+
+    const now = Date.now();
     set({ 
       isProcessing: true, 
       processedCount: 0, 
       currentMode: mode,
       errorType: null,
       errorRetrySeconds: undefined,
+      processingStartTime: now,
+      currentBatchStartTime: undefined,
+      currentBatchIndex: 0,
+      totalBatches,
     });
 
-    // Reset all files to pending and clear processed data
+    // Reset all files to waiting and clear processed data
     const resetFiles = files.map((f) => ({ 
       ...f, 
-      status: "pending" as FileStatus,
+      status: "waiting" as FileStatus,
+      processingStartTime: undefined,
       processedPreview: undefined,
       processedFile: undefined,
       processedBase64: undefined,
@@ -293,10 +345,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error("Processing error:", error);
       const parsed = parseApiError(error);
-      set({ 
+      
+      // Reset all non-done files to pending on error
+      set((state) => ({
         errorType: parsed.type, 
-        errorRetrySeconds: parsed.retryAfterSeconds 
-      });
+        errorRetrySeconds: parsed.retryAfterSeconds,
+        files: state.files.map((f) => 
+          f.status === "done" 
+            ? f 
+            : { ...f, status: "pending" as FileStatus, processingStartTime: undefined }
+        ),
+        currentBatchStartTime: undefined,
+        currentBatchIndex: 0,
+      }));
     } finally {
       set({ isProcessing: false });
     }
@@ -331,6 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       files: state.files.map((f) => ({ 
         ...f, 
         status: "pending" as FileStatus,
+        processingStartTime: undefined,
         processedPreview: undefined,
         processedFile: undefined,
         processedBase64: undefined,
@@ -340,6 +402,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentMode: null,
       errorType: null,
       errorRetrySeconds: undefined,
+      processingStartTime: undefined,
+      currentBatchStartTime: undefined,
+      currentBatchIndex: 0,
+      totalBatches: 0,
     }));
   },
 }));

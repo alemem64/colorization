@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ManagedFile } from "@/store/useAppStore";
 import { Check, GripVertical } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 interface FileCardProps {
   file: ManagedFile;
@@ -12,6 +13,8 @@ interface FileCardProps {
 }
 
 export function FileCard({ file, index }: FileCardProps) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   const {
     attributes,
     listeners,
@@ -28,10 +31,26 @@ export function FileCard({ file, index }: FileCardProps) {
     opacity: isDragging ? 0.8 : 1,
   };
 
+  // Timer for processing state - update every 100ms for smooth decimal display
+  useEffect(() => {
+    if (file.status === "processing" && file.processingStartTime) {
+      const interval = setInterval(() => {
+        const elapsed = (Date.now() - file.processingStartTime!) / 1000;
+        setElapsedSeconds(elapsed);
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      setElapsedSeconds(0);
+    }
+  }, [file.status, file.processingStartTime]);
+
   // Use processed image if available and done, otherwise original
   const displayImage = file.status === "done" && file.processedPreview 
     ? file.processedPreview 
     : file.preview;
+
+  // Calculate fill percentage (50 seconds = 100%) - smooth transition
+  const fillPercent = Math.min((elapsedSeconds / 50) * 100, 100);
 
   return (
     <div
@@ -56,12 +75,33 @@ export function FileCard({ file, index }: FileCardProps) {
           draggable={false}
         />
 
-        {/* Processing overlay with shimmer */}
-        {file.status === "processing" && (
-          <div className="absolute inset-0 bg-sec/60 shimmer pointer-events-none" />
+        {/* Waiting overlay - shimmer effect over image with dark background */}
+        {file.status === "waiting" && (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="absolute inset-0 shimmer-overlay" />
+          </div>
         )}
 
-        {/* Done overlay - only show check icon briefly, then show the processed image */}
+        {/* Processing overlay - fill animation with timer badge */}
+        {file.status === "processing" && (
+          <>
+            {/* Fill from left to right - smooth transition */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `linear-gradient(to right, var(--hl-bd) ${fillPercent}%, transparent ${fillPercent}%)`,
+                opacity: 0.5,
+              }}
+            />
+            {/* Timer badge in top-right */}
+            <div className="absolute top-2 right-2 min-w-[48px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-mono font-bold text-center shadow-md pointer-events-none">
+              {elapsedSeconds.toFixed(1)}s
+            </div>
+          </>
+        )}
+
+        {/* Done overlay - only show check icon */}
         {file.status === "done" && (
           <div className="absolute top-2 right-2 p-1.5 rounded-full bg-hl shadow-md pointer-events-none">
             <Check className="h-4 w-4 text-hl" />
@@ -73,8 +113,8 @@ export function FileCard({ file, index }: FileCardProps) {
           {index + 1}
         </div>
 
-        {/* Drag indicator - only show when not done */}
-        {file.status !== "done" && (
+        {/* Drag indicator - only show when pending */}
+        {file.status === "pending" && (
           <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             <GripVertical className="h-4 w-4 text-sec" />
           </div>
