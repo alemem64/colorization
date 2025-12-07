@@ -2,7 +2,7 @@
 
 import { useTranslation } from "@/i18n/useTranslation";
 import { useAppStore, ProcessingMode, Resolution } from "@/store/useAppStore";
-import { Eye, EyeOff, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Trash2, AlertCircle } from "lucide-react";
 import { useState } from "react";
 
 interface SidebarProps {
@@ -22,6 +22,7 @@ export function Sidebar({ mode }: SidebarProps) {
     toLanguage,
     isProcessing,
     processedCount,
+    error,
     setApiKey,
     setBatchSize,
     setResolution,
@@ -50,17 +51,21 @@ export function Sidebar({ mode }: SidebarProps) {
     return mode === "colorize" ? t.actions.colorize : t.actions.translate;
   };
 
+  // Validation
+  const canProcess = apiKey.trim() !== "" && 
+    (mode === "colorize" || (fromLanguage.trim() !== "" && toLanguage.trim() !== ""));
+
   return (
     <aside className="w-80 bg-sec border-l border-sec p-6 flex flex-col h-full">
       <h2 className="text-xl font-bold text-pri mb-6 capitalize">
         {mode === "colorize" ? t.nav.colorize : t.nav.translate}
       </h2>
 
-      <div className="flex-1 space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto">
         {/* API Key */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-sec">
-            {t.sidebar.apiKey}
+            {t.sidebar.apiKey} <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -130,7 +135,7 @@ export function Sidebar({ mode }: SidebarProps) {
           <>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-sec">
-                {t.sidebar.fromLanguage}
+                {t.sidebar.fromLanguage} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -142,7 +147,7 @@ export function Sidebar({ mode }: SidebarProps) {
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-sec">
-                {t.sidebar.toLanguage}
+                {t.sidebar.toLanguage} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -158,6 +163,14 @@ export function Sidebar({ mode }: SidebarProps) {
 
       {/* Action buttons */}
       <div className="mt-6 space-y-3">
+        {/* Error message */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span className="break-words">{error}</span>
+          </div>
+        )}
+
         {/* Progress bar */}
         {isProcessing && (
           <div className="w-full bg-ter rounded-full h-2 overflow-hidden">
@@ -171,16 +184,16 @@ export function Sidebar({ mode }: SidebarProps) {
         {/* Main action button */}
         <button
           onClick={handleAction}
-          disabled={files.length === 0 || isProcessing}
+          disabled={files.length === 0 || isProcessing || (!allDone && !canProcess)}
           className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
-            files.length === 0 || isProcessing
+            files.length === 0 || isProcessing || (!allDone && !canProcess)
               ? "bg-ter text-ter cursor-not-allowed"
               : allDone
               ? "bg-hl text-hl hover:opacity-90"
               : "bg-hl text-hl hover:opacity-90"
           }`}
           style={{
-            backgroundColor: files.length === 0 || isProcessing ? undefined : "var(--hl-bd)",
+            backgroundColor: files.length === 0 || isProcessing || (!allDone && !canProcess) ? undefined : "var(--hl-bd)",
           }}
         >
           {getButtonText()}

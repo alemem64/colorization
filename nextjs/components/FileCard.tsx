@@ -28,6 +28,11 @@ export function FileCard({ file, index }: FileCardProps) {
     opacity: isDragging ? 0.8 : 1,
   };
 
+  // Use processed image if available and done, otherwise original
+  const displayImage = file.status === "done" && file.processedPreview 
+    ? file.processedPreview 
+    : file.preview;
+
   return (
     <div
       ref={setNodeRef}
@@ -43,7 +48,7 @@ export function FileCard({ file, index }: FileCardProps) {
       {/* Image container */}
       <div className="relative aspect-[3/4] bg-ter">
         <Image
-          src={file.preview}
+          src={displayImage}
           alt={file.name}
           fill
           className="object-cover pointer-events-none"
@@ -56,12 +61,10 @@ export function FileCard({ file, index }: FileCardProps) {
           <div className="absolute inset-0 bg-sec/60 shimmer pointer-events-none" />
         )}
 
-        {/* Done overlay */}
+        {/* Done overlay - only show check icon briefly, then show the processed image */}
         {file.status === "done" && (
-          <div className="absolute inset-0 bg-hl/40 flex items-center justify-center pointer-events-none">
-            <div className="p-3 rounded-full bg-hl">
-              <Check className="h-8 w-8 text-hl" />
-            </div>
+          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-hl shadow-md pointer-events-none">
+            <Check className="h-4 w-4 text-hl" />
           </div>
         )}
 
@@ -70,10 +73,12 @@ export function FileCard({ file, index }: FileCardProps) {
           {index + 1}
         </div>
 
-        {/* Drag indicator */}
-        <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <GripVertical className="h-4 w-4 text-sec" />
-        </div>
+        {/* Drag indicator - only show when not done */}
+        {file.status !== "done" && (
+          <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <GripVertical className="h-4 w-4 text-sec" />
+          </div>
+        )}
       </div>
 
       {/* Filename */}

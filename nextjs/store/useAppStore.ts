@@ -3,6 +3,9 @@
 import { create } from "zustand";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { processTranslation, TranslateConfig } from "@/services/translate";
+import { processColorization } from "@/services/colorize";
+import { base64ToBlob, base64ToFile, ProcessedResult, Resolution as ApiResolution } from "@/services/core";
 
 export type FileStatus = "pending" | "processing" | "done";
 
@@ -13,6 +16,10 @@ export interface ManagedFile {
   preview: string;
   status: FileStatus;
   order: number;
+  // Processed result
+  processedPreview?: string;
+  processedFile?: File;
+  processedBase64?: string;
 }
 
 export type Resolution = "1k" | "2k" | "3k" | "4k";
@@ -35,6 +42,7 @@ interface AppState {
   isProcessing: boolean;
   processedCount: number;
   currentMode: ProcessingMode | null;
+  error: string | null;
 
   // Actions
   addFiles: (files: File[]) => void;
@@ -53,9 +61,12 @@ interface AppState {
   setToLanguage: (lang: string) => void;
 
   // Processing actions
+  setFilesProcessing: (indices: number[]) => void;
+  setFileComplete: (result: ProcessedResult) => void;
   startProcessing: (mode: ProcessingMode) => Promise<void>;
   downloadZip: () => Promise<void>;
   resetProcessing: () => void;
+  getProcessedImageBase64: (index: number) => Promise<string | null>;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -77,6 +88,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isProcessing: false,
   processedCount: 0,
   currentMode: null,
+  error: null,
 
   // File actions
   addFiles: (newFiles: File[]) => {
@@ -100,6 +112,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const fileToRemove = files.find((f) => f.id === id);
     if (fileToRemove) {
       URL.revokeObjectURL(fileToRemove.preview);
+      if (fileToRemove.processedPreview) {
+        URL.revokeObjectURL(fileToRemove.processedPreview);
+      }
     }
 
     const updatedFiles = files
@@ -111,12 +126,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   clearFiles: () => {
     const files = get().files;
-    files.forEach((f) => URL.revokeObjectURL(f.preview));
+    files.forEach((f) => {
+      URL.revokeObjectURL(f.preview);
+      if (f.processedPreview) {
+        URL.revokeObjectURL(f.processedPreview);
+      }
+    });
     set({
       files: [],
       isProcessing: false,
       processedCount: 0,
       currentMode: null,
+      error: null,
     });
   },
 
@@ -165,49 +186,112 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFromLanguage: (lang: string) => set({ fromLanguage: lang }),
   setToLanguage: (lang: string) => set({ toLanguage: lang }),
 
+  // Processing helper actions
+  setFilesProcessing: (indices: number[]) => {
+    set((state) => ({
+      files: state.files.map((f, idx) =>
+        indices.includes(idx) ? { ...f, status: "processing" as FileStatus } : f
+      ),
+    }));
+  },
+
+  setFileComplete: (result: ProcessedResult) => {
+    const { index, imageData, mimeType } = result;
+    const files = get().files;
+    
+    if (index >= files.length) return;
+
+    const processedPreview = base64ToBlob(imageData, mimeType);
+    const extension = mimeType.split("/")[1] || "png";
+    const processedFile = base64ToFile(imageData, mimeType, `${index + 1}p.${extension}`);
+
+    set((state) => ({
+      files: state.files.map((f, idx) =>
+        idx === index
+          ? {
+              ...f,
+              status: "done" as FileStatus,
+              processedPreview,
+              processedFile,
+              processedBase64: imageData,
+            }
+          : f
+      ),
+      processedCount: state.processedCount + 1,
+    }));
+  },
+
+  getProcessedImageBase64: async (index: number): Promise<string | null> => {
+    const files = get().files;
+    if (index >= files.length) return null;
+    return files[index].processedBase64 || null;
+  },
+
   // Processing actions
   startProcessing: async (mode: ProcessingMode) => {
-    const { files, batchSize } = get();
+    const { files, apiKey, batchSize, resolution, fromLanguage, toLanguage } = get();
     if (files.length === 0) return;
-
-    set({ isProcessing: true, processedCount: 0, currentMode: mode });
-
-    // Reset all files to pending
-    const resetFiles = files.map((f) => ({ ...f, status: "pending" as FileStatus }));
-    set({ files: resetFiles });
-
-    // Mock processing - process files in batches
-    const totalFiles = files.length;
-    const batches = Math.ceil(totalFiles / batchSize);
-
-    for (let batch = 0; batch < batches; batch++) {
-      const startIdx = batch * batchSize;
-      const endIdx = Math.min(startIdx + batchSize, totalFiles);
-
-      // Mark current batch as processing
-      set((state) => ({
-        files: state.files.map((f, idx) =>
-          idx >= startIdx && idx < endIdx
-            ? { ...f, status: "processing" as FileStatus }
-            : f
-        ),
-      }));
-
-      // Simulate processing delay (500ms per batch)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Mark batch as done
-      set((state) => ({
-        files: state.files.map((f, idx) =>
-          idx >= startIdx && idx < endIdx
-            ? { ...f, status: "done" as FileStatus }
-            : f
-        ),
-        processedCount: endIdx,
-      }));
+    if (!apiKey) {
+      set({ error: "API key is required" });
+      return;
     }
 
-    set({ isProcessing: false });
+    set({ 
+      isProcessing: true, 
+      processedCount: 0, 
+      currentMode: mode,
+      error: null,
+    });
+
+    // Reset all files to pending and clear processed data
+    const resetFiles = files.map((f) => ({ 
+      ...f, 
+      status: "pending" as FileStatus,
+      processedPreview: undefined,
+      processedFile: undefined,
+      processedBase64: undefined,
+    }));
+    set({ files: resetFiles });
+
+    try {
+      const originalFiles = get().files.map((f) => f.file);
+
+      if (mode === "translate") {
+        const config: TranslateConfig = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+          fromLanguage,
+          toLanguage,
+        };
+
+        await processTranslation(
+          originalFiles,
+          config,
+          (indices) => get().setFilesProcessing(indices),
+          (result) => get().setFileComplete(result)
+        );
+      } else if (mode === "colorize") {
+        const config = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+        };
+
+        await processColorization(
+          originalFiles,
+          config,
+          (indices) => get().setFilesProcessing(indices),
+          (result) => get().setFileComplete(result),
+          (index) => get().getProcessedImageBase64(index)
+        );
+      }
+    } catch (error) {
+      console.error("Processing error:", error);
+      set({ error: error instanceof Error ? error.message : "Processing failed" });
+    } finally {
+      set({ isProcessing: false });
+    }
   },
 
   downloadZip: async () => {
@@ -216,13 +300,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const zip = new JSZip();
 
-    // Add files to zip with renamed filenames based on order
+    // Add processed files to zip with renamed filenames based on order
     for (let i = 0; i < files.length; i++) {
       const managedFile = files[i];
-      const extension = getFileExtension(managedFile.name);
+      
+      // Use processed file if available, otherwise original
+      const fileToZip = managedFile.processedFile || managedFile.file;
+      const extension = getFileExtension(fileToZip.name);
       const newFilename = `${i + 1}p.${extension}`;
 
-      const arrayBuffer = await managedFile.file.arrayBuffer();
+      const arrayBuffer = await fileToZip.arrayBuffer();
       zip.file(newFilename, arrayBuffer);
     }
 
@@ -233,10 +320,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   resetProcessing: () => {
     set((state) => ({
-      files: state.files.map((f) => ({ ...f, status: "pending" as FileStatus })),
+      files: state.files.map((f) => ({ 
+        ...f, 
+        status: "pending" as FileStatus,
+        processedPreview: undefined,
+        processedFile: undefined,
+        processedBase64: undefined,
+      })),
       isProcessing: false,
       processedCount: 0,
       currentMode: null,
+      error: null,
     }));
   },
 }));
