@@ -19,30 +19,32 @@
 
     /* Highlight: Yellow */
     --hl-txt: #854d0e;
-    --hl-bg: #fef08a;
-    --hl-bd: #fde047;
+    --hl-bg: #ffe100;
+    --hl-bd: #ffc800;
 
     --bd-radius: 0.5rem;
   }
 
   .dark {
-    /* Invert colors for Dark Mode */
-    --pri-txt: #ffffff;
-    --pri-bg: #09090b;
-    --pri-bd: #27272a;
+    /* Primary: Dark neutral background */
+    --pri-txt: #e4e4e7;
+    --pri-bg: #18181b;
+    --pri-bd: #3f3f46;
 
-    --sec-txt: #94a3b8;
-    --sec-bg: #111823;
-    --sec-bd: #334155;
+    /* Secondary: Slightly lighter dark */
+    --sec-txt: #a1a1aa;
+    --sec-bg: #27272a;
+    --sec-bd: #3f3f46;
 
-    --ter-txt: #64748b;
-    --ter-bg: #0f172a;
-    --ter-bd: #1e293b;
+    /* Tertiary: Even lighter for disabled/faint */
+    --ter-txt: #71717a;
+    --ter-bg: #1f1f23;
+    --ter-bd: #3f3f46;
 
-    /* Highlight: Keep Yellow but adjust for dark bg */
-    --hl-txt: #fef08a;
-    --hl-bg: #422006;
-    --hl-bd: #854d0e;
+    /* Highlight: Warm amber for dark mode */
+    --hl-txt: #271a00;
+    --hl-bg: #fbbf24;
+    --hl-bd: #fbbf24;
   }
 }
 

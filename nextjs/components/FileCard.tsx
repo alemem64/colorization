@@ -66,12 +66,12 @@ export function FileCard({ file, index }: FileCardProps) {
         )}
 
         {/* Index badge */}
-        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-pri/90 text-pri text-sm font-bold pointer-events-none">
+        <div className="absolute top-2 left-2 min-w-[28px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-bold text-center shadow-md pointer-events-none">
           {index + 1}
         </div>
 
         {/* Drag indicator */}
-        <div className="absolute top-2 right-2 p-1.5 rounded-md bg-pri/90 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <GripVertical className="h-4 w-4 text-sec" />
         </div>
       </div>
