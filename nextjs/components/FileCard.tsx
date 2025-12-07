@@ -22,16 +22,19 @@ export function FileCard({ file, index }: FileCardProps) {
   } = useSortable({ id: file.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? undefined : transition,
     zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : 1,
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group rounded-lg overflow-hidden border-2 transition-all ${
+      {...attributes}
+      {...listeners}
+      className={`relative group rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing ${
         isDragging
           ? "border-[var(--hl-bd)] shadow-lg scale-105"
           : "border-sec hover:border-[var(--hl-bd)]"
@@ -43,18 +46,19 @@ export function FileCard({ file, index }: FileCardProps) {
           src={file.preview}
           alt={file.name}
           fill
-          className="object-cover"
+          className="object-cover pointer-events-none"
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          draggable={false}
         />
 
         {/* Processing overlay with shimmer */}
         {file.status === "processing" && (
-          <div className="absolute inset-0 bg-sec/60 shimmer" />
+          <div className="absolute inset-0 bg-sec/60 shimmer pointer-events-none" />
         )}
 
         {/* Done overlay */}
         {file.status === "done" && (
-          <div className="absolute inset-0 bg-hl/40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-hl/40 flex items-center justify-center pointer-events-none">
             <div className="p-3 rounded-full bg-hl">
               <Check className="h-8 w-8 text-hl" />
             </div>
@@ -62,16 +66,12 @@ export function FileCard({ file, index }: FileCardProps) {
         )}
 
         {/* Index badge */}
-        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-pri/90 text-pri text-sm font-bold">
+        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-pri/90 text-pri text-sm font-bold pointer-events-none">
           {index + 1}
         </div>
 
-        {/* Drag handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute top-2 right-2 p-1.5 rounded-md bg-pri/90 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-        >
+        {/* Drag indicator */}
+        <div className="absolute top-2 right-2 p-1.5 rounded-md bg-pri/90 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <GripVertical className="h-4 w-4 text-sec" />
         </div>
       </div>

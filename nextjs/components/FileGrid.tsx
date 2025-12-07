@@ -13,6 +13,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { FileCard } from "@/components/FileCard";
 import { useAppStore } from "@/store/useAppStore";
@@ -21,12 +22,12 @@ import { ArrowDownAZ, ArrowUpZA } from "lucide-react";
 
 export function FileGrid() {
   const t = useTranslation();
-  const { files, sortOrder, reorderFiles, toggleSortOrder } = useAppStore();
+  const { files, sortOrder, setFiles, toggleSortOrder } = useAppStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -38,7 +39,16 @@ export function FileGrid() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      reorderFiles(active.id as string, over.id as string);
+      const oldIndex = files.findIndex((f) => f.id === active.id);
+      const newIndex = files.findIndex((f) => f.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newFiles = arrayMove(files, oldIndex, newIndex).map((f, idx) => ({
+          ...f,
+          order: idx,
+        }));
+        setFiles(newFiles);
+      }
     }
   };
 

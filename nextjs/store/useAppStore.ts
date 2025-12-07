@@ -40,6 +40,7 @@ interface AppState {
   addFiles: (files: File[]) => void;
   removeFile: (id: string) => void;
   clearFiles: () => void;
+  setFiles: (files: ManagedFile[]) => void;
   reorderFiles: (activeId: string, overId: string) => void;
   toggleSortOrder: () => void;
   sortFiles: (order: SortOrder) => void;
@@ -119,6 +120,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  setFiles: (files: ManagedFile[]) => {
+    set({ files });
+  },
+
   reorderFiles: (activeId: string, overId: string) => {
     const files = [...get().files];
     const activeIndex = files.findIndex((f) => f.id === activeId);
@@ -141,7 +146,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   sortFiles: (order: SortOrder) => {
     const files = [...get().files];
     files.sort((a, b) => {
-      const comparison = a.name.localeCompare(b.name);
+      // Use natural sort with numeric option for proper alphabetical ordering
+      const comparison = a.name.localeCompare(b.name, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
       return order === "asc" ? comparison : -comparison;
     });
 
