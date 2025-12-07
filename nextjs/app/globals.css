@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Primary: Clean Black/White */
+    --pri-txt: #09090b;
+    --pri-bg: #ffffff;
+    --pri-bd: #e4e4e7;
+
+    /* Secondary: Bluish Gray (Cooler tone) */
+    --sec-txt: #475569;
+    --sec-bg: #f8fafc;
+    --sec-bd: #e2e8f0;
+
+    /* Tertiary: Faint/Disabled */
+    --ter-txt: #94a3b8;
+    --ter-bg: #f1f5f9;
+    --ter-bd: #e2e8f0;
+
+    /* Highlight: Yellow */
+    --hl-txt: #854d0e;
+    --hl-bg: #fef08a;
+    --hl-bd: #fde047;
+
+    --bd-radius: 0.5rem;
+  }
+
+  .dark {
+    /* Invert colors for Dark Mode */
+    --pri-txt: #ffffff;
+    --pri-bg: #09090b;
+    --pri-bd: #27272a;
+
+    --sec-txt: #94a3b8;
+    --sec-bg: #1e293b;
+    --sec-bd: #334155;
+
+    --ter-txt: #64748b;
+    --ter-bg: #0f172a;
+    --ter-bd: #1e293b;
+
+    /* Highlight: Keep Yellow but adjust for dark bg */
+    --hl-txt: #fef08a;
+    --hl-bg: #422006;
+    --hl-bd: #854d0e;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-[var(--pri-bd)];
+  }
+
+  body {
+    @apply bg-[var(--pri-bg)] text-[var(--pri-txt)];
+  }
+}
+
+@layer utilities {
+  .bg-pri {
+    background-color: var(--pri-bg);
+  }
+  .bg-sec {
+    background-color: var(--sec-bg);
+  }
+  .bg-ter {
+    background-color: var(--ter-bg);
+  }
+  .bg-hl {
+    background-color: var(--hl-bg);
+  }
+
+  .text-pri {
+    color: var(--pri-txt);
+  }
+  .text-sec {
+    color: var(--sec-txt);
+  }
+  .text-ter {
+    color: var(--ter-txt);
+  }
+  .text-hl {
+    color: var(--hl-txt);
+  }
+
+  .border-pri {
+    border-color: var(--pri-bd);
+  }
+  .border-sec {
+    border-color: var(--sec-bd);
+  }
+  .border-ter {
+    border-color: var(--ter-bd);
+  }
+  .border-hl {
+    border-color: var(--hl-bd);
+  }
+}
+
+/* Shimmer animation for processing state */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--sec-bg) 25%,
+    var(--ter-bg) 50%,
+    var(--sec-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
