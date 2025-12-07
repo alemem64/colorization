@@ -6,7 +6,7 @@ import { FileUpload } from "@/components/FileUpload";
 import { FileGrid } from "@/components/FileGrid";
 import { Sidebar } from "@/components/layout/Sidebar";
 
-export default function TranslatePage() {
+export default function ColorizeAndTranslatePage() {
   const files = useAppStore((state) => state.files);
   const clearFiles = useAppStore((state) => state.clearFiles);
   const setBatchSize = useAppStore((state) => state.setBatchSize);
@@ -14,7 +14,7 @@ export default function TranslatePage() {
   // Clear files and set default batch size when navigating to this page
   useEffect(() => {
     clearFiles();
-    setBatchSize(8);
+    setBatchSize(5);
   }, [clearFiles, setBatchSize]);
 
   return (
@@ -25,7 +25,7 @@ export default function TranslatePage() {
       </div>
 
       {/* Sidebar */}
-      <Sidebar mode="translate" />
+      <Sidebar mode="colorizeAndTranslate" />
     </div>
   );
 }

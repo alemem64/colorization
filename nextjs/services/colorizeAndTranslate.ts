@@ -1,6 +1,6 @@
 /**
- * Colorization service for manga pages
- * Handles reference-based batch colorization with Gemini API
+ * Colorize and Translate service for manga pages
+ * Handles reference-based batch colorization with translation using Gemini API
  */
 
 import {
@@ -18,45 +18,68 @@ import {
 } from "./core";
 import { debugLogger } from "./debug";
 
+export interface ColorizeAndTranslateConfig extends ProcessingConfig {
+  fromLanguage: string;
+  toLanguage: string;
+  displayBothLanguages: boolean;
+}
+
 /**
- * Generate colorization prompt
+ * Generate colorize and translate prompt
  */
-function getColorizationPrompt(refPageCount: number, aspectRatioStr: string): string {
+function getColorizeAndTranslatePrompt(
+  refPageCount: number, 
+  aspectRatioStr: string,
+  fromLanguage: string,
+  toLanguage: string,
+  displayBothLanguages: boolean
+): string {
   const refPages = refPageCount > 0 
     ? `the ${refPageCount} reference image(s) attached above` 
     : "no reference images";
-  
-  return `Colorize the manga page below. Refer to ${refPages} to maintain consistency in character eye color, skin color, hair color, and clothing color.
 
-COLORING STYLE REQUIREMENTS:
+  const bilingualInstruction = displayBothLanguages
+    ? `\n- BILINGUAL MODE: Display BOTH languages - show original ${fromLanguage} text at the TOP and translated ${toLanguage} text at the BOTTOM of each speech balloon. Adjust font sizes if necessary to fit both languages clearly.`
+    : "";
+  
+  return `Colorize AND translate this manga page from ${fromLanguage} to ${toLanguage}. Refer to ${refPages} to maintain color consistency.
+
+COLORING REQUIREMENTS:
 - Apply vibrant, rich, and diverse colors throughout the entire image.
 - Use a colorful and visually appealing palette that brings the manga to life.
 - Add depth and dimension with shading and highlights where appropriate.
 - Make the coloring look professional and polished like a published color manga.
 
-CONSISTENCY REQUIREMENTS:
-- MAINTAIN COSISTENCY FOR THE SAME CHARACTER, but if the character is wearing new clothing, draw same character with appropriate different clothing .
+COLOR CONSISTENCY REQUIREMENTS:
 - Maintain cosmetic features (eye color, hair color, skin tone) consistently for each character across all pages.
 - Maintain consistency in background colors and object colors when they reappear.
 - Color different characters with distinct colors, but the same character must be colored consistently.
+- If a character is wearing new clothing, draw them with appropriate different clothing colors.
+
+TRANSLATION REQUIREMENTS:
+- Do NOT translate literally word-by-word. Think about context, character emotions, and scene atmosphere.
+- Adapt the translation to sound natural in ${toLanguage} while preserving the original meaning and tone.
+- Consider manga-specific expressions, onomatopoeia, and cultural nuances when translating.
+- Make the dialogue flow naturally as if it was originally written in ${toLanguage}.
+- Translate speech balloon text, onomatopoeia, handwritten text, and all other texts.${bilingualInstruction}
 
 IMAGE REQUIREMENTS:
 - The original image size is ${aspectRatioStr}. Make image which has EXACTLY SAME ratio and layout with original one.
-- Preserve speech balloons, onomatopoeia, backgrounds, grids, and all structural elements.
-- Do not modify or delete any text - keep all text exactly as is.
-- Do not change character expressions or gestures - only apply colors.
-- Color each panel's scene exactly as shown - do not add different scenes, modify scenes, or remove scenes.
+- Preserve speech balloon shapes, panel grids, and all structural elements.
+- Do NOT add completely new characters or objects that are not present in the original image. JUST COLORIZE EXISTING ELEMENTS.
+- Color each panel's scene EXACTLY as shown - DO NOT ADD, MODIFY, OR REMOVE SCENES.
 
-Colorize the following image:`;
+Colorize and translate the following image:`;
 }
 
 /**
- * Build a single colorization request for one page
+ * Build a single colorize and translate request for one page
  */
 async function buildSinglePageRequest(
   pageIndex: number,
   file: File,
   refIndices: number[],
+  config: ColorizeAndTranslateConfig,
   getProcessedImageBase64: (index: number) => Promise<string | null>
 ): Promise<ContentPart[]> {
   const contents: ContentPart[] = [];
@@ -65,15 +88,15 @@ async function buildSinglePageRequest(
   for (const refIdx of refIndices) {
     const refBase64 = await getProcessedImageBase64(refIdx);
     if (refBase64) {
-      contents.push(createTextPart(`This is reference page ${refIdx + 1} (already colorized):`));
+      contents.push(createTextPart(`This is reference page ${refIdx + 1} (already colorized and translated):`));
       contents.push(createImagePart(refBase64, "image/png"));
     }
   }
 
-  // Add the page to colorize
+  // Add the page to process
   const base64 = await fileToBase64(file);
   const mimeType = getMimeType(file);
-  contents.push(createTextPart(`Colorize page ${pageIndex + 1}:`));
+  contents.push(createTextPart(`Colorize and translate page ${pageIndex + 1}:`));
   contents.push(createImagePart(base64, mimeType));
 
   // Calculate aspect ratio for the image
@@ -81,30 +104,24 @@ async function buildSinglePageRequest(
   const aspectRatioStr = formatAspectRatioForPrompt(width, height);
 
   // Add prompt
-  contents.push(createTextPart(getColorizationPrompt(refIndices.length, aspectRatioStr)));
+  contents.push(createTextPart(getColorizeAndTranslatePrompt(
+    refIndices.length, 
+    aspectRatioStr,
+    config.fromLanguage,
+    config.toLanguage,
+    config.displayBothLanguages
+  )));
 
   return contents;
 }
 
 /**
- * Build the colorization batch request with reference images
- * 
- * Batch logic:
- * - Each API request outputs exactly 1 page
- * - Multiple requests are sent in parallel (batch)
- * - Each batch uses the same reference images from the last completed batch
- * - Batch size determines: max parallel requests AND max reference images
- * 
- * Example with batchSize=4 and 12 pages:
- * Batch 1: ref=none, output=[1] (1 request, first page special case)
- * Batch 2: ref=[1], output=[2] (1 request, min(2,4,1)=1)
- * Batch 3: ref=[1,2], output=[3,4] (2 parallel requests, min(3,4,2)=2)
- * Batch 4: ref=[1,2,3,4], output=[5,6,7,8] (4 parallel requests, min(4,4,4)=4)
- * Batch 5: ref=[5,6,7,8], output=[9,10,11,12] (4 parallel requests)
+ * Process colorization and translation for all pages
+ * Uses the same batch logic as colorize: min(batchNumber, batchSize, completedCount)
  */
-export async function processColorization(
+export async function processColorizeAndTranslate(
   files: File[],
-  config: ProcessingConfig,
+  config: ColorizeAndTranslateConfig,
   onPageProcessing: (indices: number[]) => void,
   onPageComplete: (result: ProcessedResult) => void,
   getProcessedImageBase64: (index: number) => Promise<string | null>
@@ -141,7 +158,6 @@ export async function processColorization(
     const refIndices = completedIndices.slice(refStartIndex);
 
     // Build parallel requests - one request per page, all using the same references
-    // Each request calls onPageComplete immediately when it finishes (not waiting for others)
     const batchCompletedIndices: number[] = [];
     
     const requestPromises = batchIndices.map(async (pageIndex) => {
@@ -149,10 +165,11 @@ export async function processColorization(
         pageIndex,
         files[pageIndex],
         refIndices,
+        config,
         getProcessedImageBase64
       );
 
-      const requestId = `colorize_batch${batchNumber}_page${pageIndex + 1}_${Date.now()}`;
+      const requestId = `colorize_translate_batch${batchNumber}_page${pageIndex + 1}_${Date.now()}`;
       const results = await callGeminiImageAPI(
         config.apiKey,
         contents,
@@ -182,12 +199,12 @@ export async function processColorization(
 }
 
 /**
- * Rerun a single page for colorization
+ * Rerun a single page for colorization and translation
  * Uses up to (batchSize - 1) previous completed pages as references
  */
-export async function rerunColorizePage(
+export async function rerunColorizeAndTranslatePage(
   file: File,
-  config: ProcessingConfig,
+  config: ColorizeAndTranslateConfig,
   pageIndex: number,
   getProcessedImageBase64: (index: number) => Promise<string | null>
 ): Promise<ProcessedResult> {
@@ -206,10 +223,11 @@ export async function rerunColorizePage(
     pageIndex,
     file,
     refIndices,
+    config,
     getProcessedImageBase64
   );
 
-  const requestId = `colorize_rerun_page${pageIndex + 1}_${Date.now()}`;
+  const requestId = `colorize_translate_rerun_page${pageIndex + 1}_${Date.now()}`;
   const results = await callGeminiImageAPI(
     config.apiKey,
     contents,

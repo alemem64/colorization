@@ -2,10 +2,15 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ManagedFile } from "@/store/useAppStore";
-import { Check, GripVertical } from "lucide-react";
+import { ManagedFile, useAppStore } from "@/store/useAppStore";
+import { Check, GripVertical, ZoomIn, X, RotateCcw } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { ImageModal } from "./ImageModal";
+import { useTranslation } from "@/i18n/useTranslation";
+
+// Timeout constant (80 seconds)
+const PAGE_TIMEOUT_SECONDS = 80;
 
 interface FileCardProps {
   file: ManagedFile;
@@ -13,7 +18,14 @@ interface FileCardProps {
 }
 
 export function FileCard({ file, index }: FileCardProps) {
+  const t = useTranslation();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const setFileFailed = useAppStore((state) => state.setFileFailed);
+  const rerunPage = useAppStore((state) => state.rerunPage);
+  const isProcessing = useAppStore((state) => state.isProcessing);
 
   const {
     attributes,
@@ -32,101 +44,181 @@ export function FileCard({ file, index }: FileCardProps) {
   };
 
   // Timer for processing state - update every 100ms for smooth decimal display
+  // Also handles 80 second timeout
   useEffect(() => {
     if (file.status === "processing" && file.processingStartTime) {
       const interval = setInterval(() => {
         const elapsed = (Date.now() - file.processingStartTime!) / 1000;
         setElapsedSeconds(elapsed);
+        
+        // Check for timeout (80 seconds)
+        if (elapsed >= PAGE_TIMEOUT_SECONDS) {
+          setFileFailed(index);
+        }
       }, 100);
       return () => clearInterval(interval);
     } else {
       setElapsedSeconds(0);
     }
-  }, [file.status, file.processingStartTime]);
+  }, [file.status, file.processingStartTime, index, setFileFailed]);
 
   // Use processed image if available and done, otherwise original
   const displayImage = file.status === "done" && file.processedPreview 
     ? file.processedPreview 
     : file.preview;
 
-  // Calculate fill percentage (50 seconds = 100%) - smooth transition
-  const fillPercent = Math.min((elapsedSeconds / 50) * 100, 100);
+  // Calculate fill percentage (30 seconds = 100%) - smooth transition
+  const fillPercent = Math.min((elapsedSeconds / 30) * 100, 100);
+
+  // Can open modal when not processing or waiting
+  const canOpenModal = file.status === "pending" || file.status === "done" || file.status === "failed";
+  
+  // Show rerun button for done or failed status (even if global processing is ongoing)
+  const canRerun = file.status === "done" || file.status === "failed";
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only open modal if not dragging and can open
+    if (!isDragging && canOpenModal) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleRerun = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Rerun clicked for index:', index);
+    if (!isProcessing) {
+      rerunPage(index);
+    }
+  };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`relative group rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing ${
-        isDragging
-          ? "border-[var(--hl-bd)] shadow-lg scale-105"
-          : "border-sec hover:border-[var(--hl-bd)]"
-      }`}
-    >
-      {/* Image container */}
-      <div className="relative aspect-[3/4] bg-ter">
-        <Image
-          src={displayImage}
-          alt={file.name}
-          fill
-          className="object-cover pointer-events-none"
-          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-          draggable={false}
-        />
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        onClick={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`relative group rounded-lg overflow-hidden border-2 ${
+          canOpenModal ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+        } ${
+          isDragging
+            ? "border-[var(--hl-bd)] shadow-lg scale-105"
+            : "border-sec hover:border-[var(--hl-bd)]"
+        }`}
+      >
+        {/* Image container */}
+        <div className="relative aspect-[3/4] bg-ter">
+          <Image
+            src={displayImage}
+            alt={file.name}
+            fill
+            className="object-cover pointer-events-none"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            draggable={false}
+          />
 
-        {/* Waiting overlay - shimmer effect over image with dark background */}
-        {file.status === "waiting" && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0 bg-black/30" />
-            <div className="absolute inset-0 shimmer-overlay" />
-          </div>
-        )}
-
-        {/* Processing overlay - fill animation with timer badge */}
-        {file.status === "processing" && (
-          <>
-            {/* Fill from left to right - smooth transition */}
-            <div 
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `linear-gradient(to right, var(--hl-bd) ${fillPercent}%, transparent ${fillPercent}%)`,
-                opacity: 0.5,
-              }}
-            />
-            {/* Timer badge in top-right */}
-            <div className="absolute top-2 right-2 min-w-[48px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-mono font-bold text-center shadow-md pointer-events-none">
-              {elapsedSeconds.toFixed(1)}s
+          {/* Zoom indicator on hover - only when can open modal, positioned higher when rerun is available */}
+          {canOpenModal && (
+            <div className={`absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none ${canRerun ? 'pb-12' : ''}`}>
+              <div className="p-3 rounded-full bg-sec/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"  style={{ backgroundColor: 'var(--sec-bg)' }}>
+                <ZoomIn className="h-6 w-6 text-pri" />
+              </div>
             </div>
-          </>
-        )}
+          )}
 
-        {/* Done overlay - only show check icon */}
-        {file.status === "done" && (
-          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-hl shadow-md pointer-events-none">
-            <Check className="h-4 w-4 text-hl" />
+          {/* Waiting overlay - shimmer effect over image with dark background */}
+          {file.status === "waiting" && (
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 bg-black/30" />
+              <div className="absolute inset-0 shimmer-overlay" />
+            </div>
+          )}
+
+          {/* Processing overlay - fill animation with timer badge */}
+          {file.status === "processing" && (
+            <>
+              {/* Fill from left to right - smooth transition */}
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: `linear-gradient(to right, var(--hl-bd) ${fillPercent}%, transparent ${fillPercent}%)`,
+                  opacity: 0.5,
+                }}
+              />
+              {/* Timer badge in top-right */}
+              <div className="absolute top-2 right-2 min-w-[48px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-mono font-bold text-center shadow-md pointer-events-none">
+                {elapsedSeconds.toFixed(1)}s
+              </div>
+            </>
+          )}
+
+          {/* Done overlay - only show check icon with hl color */}
+          {file.status === "done" && (
+            <div className="absolute top-2 right-2 p-1.5 rounded-full shadow-md pointer-events-none" style={{ backgroundColor: 'var(--hl-bd)' }}>
+              <Check className="h-4 w-4 text-white" />
+            </div>
+          )}
+
+          {/* Failed overlay - show X icon */}
+          {file.status === "failed" && (
+            <div className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500 shadow-md pointer-events-none">
+              <X className="h-4 w-4 text-white" />
+            </div>
+          )}
+
+          {/* Rerun button - show on hover for done or failed status */}
+          {canRerun && (
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <button
+                onClick={handleRerun}
+                className="flex items-center gap-3 px-6 py-3 rounded-lg bg-sec text-pri text-lg font-bold shadow-xl transition-all pointer-events-auto hover:text-hl"
+                style={{ 
+                  backgroundColor: 'var(--sec-bg)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--hl-bd)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--sec-bg)';
+                }}
+              >
+                <RotateCcw className="h-6 w-6" />
+                {t.actions.rerun}
+              </button>
+            </div>
+          )}
+
+          {/* Index badge */}
+          <div className="absolute top-2 left-2 min-w-[28px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-bold text-center shadow-md pointer-events-none">
+            {index + 1}
           </div>
-        )}
 
-        {/* Index badge */}
-        <div className="absolute top-2 left-2 min-w-[28px] px-2 py-1 rounded-md bg-sec text-pri text-sm font-bold text-center shadow-md pointer-events-none">
-          {index + 1}
+          {/* Drag indicator - only show when pending */}
+          {file.status === "pending" && (
+            <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <GripVertical className="h-4 w-4 text-sec" />
+            </div>
+          )}
         </div>
 
-        {/* Drag indicator - only show when pending */}
-        {file.status === "pending" && (
-          <div className="absolute top-2 right-2 p-1.5 rounded-md bg-sec shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <GripVertical className="h-4 w-4 text-sec" />
-          </div>
-        )}
+        {/* Filename */}
+        <div className="px-3 py-2 bg-sec">
+          <p className="text-sm text-sec truncate" title={file.name}>
+            {file.name}
+          </p>
+        </div>
       </div>
 
-      {/* Filename */}
-      <div className="px-3 py-2 bg-sec">
-        <p className="text-sm text-sec truncate" title={file.name}>
-          {file.name}
-        </p>
-      </div>
-    </div>
+      {/* Image Modal */}
+      {isModalOpen && (
+        <ImageModal file={file} onClose={() => setIsModalOpen(false)} />
+      )}
+    </>
   );
 }

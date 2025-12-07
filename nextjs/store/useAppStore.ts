@@ -3,11 +3,15 @@
 import { create } from "zustand";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { processTranslation, TranslateConfig } from "@/services/translate";
-import { processColorization } from "@/services/colorize";
+import { processTranslation, TranslateConfig, rerunTranslatePage } from "@/services/translate";
+import { processColorization, rerunColorizePage } from "@/services/colorize";
+import { processColorizeAndTranslate, ColorizeAndTranslateConfig, rerunColorizeAndTranslatePage } from "@/services/colorizeAndTranslate";
 import { base64ToBlob, base64ToFile, ProcessedResult, Resolution as ApiResolution, parseApiError, ApiErrorType } from "@/services/core";
 
-export type FileStatus = "pending" | "waiting" | "processing" | "done";
+// Timeout constant for page processing (80 seconds)
+const PAGE_TIMEOUT_MS = 80000;
+
+export type FileStatus = "pending" | "waiting" | "processing" | "done" | "failed";
 
 export interface ManagedFile {
   id: string;
@@ -26,7 +30,7 @@ export interface ManagedFile {
 
 export type Resolution = "1k" | "2k" | "3k" | "4k";
 export type SortOrder = "asc" | "desc";
-export type ProcessingMode = "colorize" | "translate";
+export type ProcessingMode = "colorize" | "translate" | "colorizeAndTranslate";
 
 interface AppState {
   // Files
@@ -39,6 +43,7 @@ interface AppState {
   resolution: Resolution;
   fromLanguage: string;
   toLanguage: string;
+  displayBothLanguages: boolean;
 
   // Processing state
   isProcessing: boolean;
@@ -66,12 +71,15 @@ interface AppState {
   setResolution: (res: Resolution) => void;
   setFromLanguage: (lang: string) => void;
   setToLanguage: (lang: string) => void;
+  setDisplayBothLanguages: (value: boolean) => void;
 
   // Processing actions
   setFilesWaiting: (indices: number[]) => void;
   setFilesProcessing: (indices: number[]) => void;
   setFileComplete: (result: ProcessedResult) => void;
+  setFileFailed: (index: number) => void;
   startProcessing: (mode: ProcessingMode) => Promise<void>;
+  rerunPage: (index: number) => Promise<void>;
   downloadZip: () => Promise<void>;
   resetProcessing: () => void;
   getProcessedImageBase64: (index: number) => Promise<string | null>;
@@ -89,10 +97,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   files: [],
   sortOrder: "asc",
   apiKey: "",
-  batchSize: 1,
-  resolution: "2k",
+  batchSize: 5,
+  resolution: "1k",
   fromLanguage: "",
   toLanguage: "",
+  displayBothLanguages: false,
   isProcessing: false,
   processedCount: 0,
   currentMode: null,
@@ -203,6 +212,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setResolution: (res: Resolution) => set({ resolution: res }),
   setFromLanguage: (lang: string) => set({ fromLanguage: lang }),
   setToLanguage: (lang: string) => set({ toLanguage: lang }),
+  setDisplayBothLanguages: (value: boolean) => set({ displayBothLanguages: value }),
 
   // Processing helper actions
   setFilesWaiting: (indices: number[]) => {
@@ -252,6 +262,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
+  setFileFailed: (index: number) => {
+    set((state) => ({
+      files: state.files.map((f, idx) =>
+        idx === index
+          ? { ...f, status: "failed" as FileStatus, processingStartTime: undefined }
+          : f
+      ),
+    }));
+  },
+
   getProcessedImageBase64: async (index: number): Promise<string | null> => {
     const files = get().files;
     if (index >= files.length) return null;
@@ -269,20 +289,36 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Calculate total batches based on mode
     // For translate: simple batches of batchSize
-    // For colorize: first page alone, then batchSize-1 pages, then batchSize pages each
+    // For colorize/colorizeAndTranslate: progressive batches (1, 1, 2, 4, 4, ...) until batchSize reached
     let totalBatches: number;
     if (mode === "translate") {
       totalBatches = Math.ceil(files.length / batchSize);
     } else {
-      // Colorize: 1 (first page) + 1 (pages 2 to batchSize) + remaining batches
-      if (files.length === 1) {
-        totalBatches = 1;
-      } else if (files.length <= batchSize) {
-        totalBatches = 2;
-      } else {
-        const remainingAfterBatch2 = files.length - batchSize;
-        totalBatches = 2 + Math.ceil(remainingAfterBatch2 / batchSize);
+      // Colorize/ColorizeAndTranslate batch sizes: 1, 1, 2, 3, 4, 4, 4, ... (capped at batchSize)
+      // Batch 1: 1 page (no ref)
+      // Batch 2: min(2, batchSize, 1) = 1 page
+      // Batch 3: min(3, batchSize, 2) = 2 pages
+      // Batch 4: min(4, batchSize, 4) = min(4, batchSize) pages
+      // Batch 5+: batchSize pages each
+      let remaining = files.length;
+      let batchNum = 1;
+      let completed = 0;
+      
+      while (remaining > 0) {
+        let batchCount: number;
+        if (batchNum === 1) {
+          batchCount = 1;
+        } else {
+          batchCount = Math.min(batchNum, batchSize, completed);
+        }
+        batchCount = Math.min(batchCount, remaining);
+        
+        remaining -= batchCount;
+        completed += batchCount;
+        batchNum++;
       }
+      
+      totalBatches = batchNum - 1;
     }
 
     const now = Date.now();
@@ -319,6 +355,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           resolution: resolution.toUpperCase() as ApiResolution,
           fromLanguage,
           toLanguage,
+          displayBothLanguages: get().displayBothLanguages,
         };
 
         await processTranslation(
@@ -335,6 +372,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
 
         await processColorization(
+          originalFiles,
+          config,
+          (indices) => get().setFilesProcessing(indices),
+          (result) => get().setFileComplete(result),
+          (index) => get().getProcessedImageBase64(index)
+        );
+      } else if (mode === "colorizeAndTranslate") {
+        const config: ColorizeAndTranslateConfig = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+          fromLanguage,
+          toLanguage,
+          displayBothLanguages: get().displayBothLanguages,
+        };
+
+        await processColorizeAndTranslate(
           originalFiles,
           config,
           (indices) => get().setFilesProcessing(indices),
@@ -407,5 +461,76 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentBatchIndex: 0,
       totalBatches: 0,
     }));
+  },
+
+  rerunPage: async (index: number) => {
+    const { files, apiKey, batchSize, resolution, fromLanguage, toLanguage, currentMode, displayBothLanguages } = get();
+    
+    if (index >= files.length || !apiKey || !currentMode) return;
+    if (get().isProcessing) return; // Don't allow rerun while processing
+
+    // Set file to processing state
+    const now = Date.now();
+    set((state) => ({
+      isProcessing: true,
+      files: state.files.map((f, idx) =>
+        idx === index
+          ? { ...f, status: "processing" as FileStatus, processingStartTime: now }
+          : f
+      ),
+    }));
+
+    try {
+      const file = files[index].file;
+      let result: ProcessedResult;
+
+      if (currentMode === "translate") {
+        const config: TranslateConfig = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+          fromLanguage,
+          toLanguage,
+          displayBothLanguages,
+        };
+        result = await rerunTranslatePage(file, config, index);
+      } else if (currentMode === "colorize") {
+        const config = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+        };
+        result = await rerunColorizePage(
+          file,
+          config,
+          index,
+          (idx) => get().getProcessedImageBase64(idx)
+        );
+      } else {
+        // colorizeAndTranslate
+        const config: ColorizeAndTranslateConfig = {
+          apiKey,
+          batchSize,
+          resolution: resolution.toUpperCase() as ApiResolution,
+          fromLanguage,
+          toLanguage,
+          displayBothLanguages,
+        };
+        result = await rerunColorizeAndTranslatePage(
+          file,
+          config,
+          index,
+          (idx) => get().getProcessedImageBase64(idx)
+        );
+      }
+
+      // Update file with result
+      get().setFileComplete(result);
+    } catch (error) {
+      console.error(`Rerun error for page ${index + 1}:`, error);
+      get().setFileFailed(index);
+    } finally {
+      set({ isProcessing: false });
+    }
   },
 }));

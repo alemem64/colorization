@@ -22,6 +22,7 @@ export function Sidebar({ mode }: SidebarProps) {
     resolution,
     fromLanguage,
     toLanguage,
+    displayBothLanguages,
     isProcessing,
     processedCount,
     errorType,
@@ -35,6 +36,7 @@ export function Sidebar({ mode }: SidebarProps) {
     setResolution,
     setFromLanguage,
     setToLanguage,
+    setDisplayBothLanguages,
     startProcessing,
     downloadZip,
     clearFiles,
@@ -63,19 +65,20 @@ export function Sidebar({ mode }: SidebarProps) {
     }
   }, [isProcessing, currentBatchStartTime]);
 
-  const maxBatchSize = mode === "colorize" ? 5 : 16;
+  // colorize uses max 5, translate uses max 16, colorizeAndTranslate uses max 5 (like colorize)
+  const maxBatchSize = mode === "translate" ? 16 : 5;
   const allDone = files.length > 0 && files.every((f) => f.status === "done");
   
-  // Smooth progress: completed files + current batch progress (50s per batch)
+  // Smooth progress: completed files + current batch progress (30s per batch)
   const completedProgress = files.length > 0 ? (processedCount / files.length) * 100 : 0;
   const currentBatchFiles = files.filter((f) => f.status === "processing").length;
   const batchContribution = files.length > 0 && currentBatchFiles > 0
-    ? ((currentBatchFiles / files.length) * 100) * Math.min(batchElapsed / 50, 1)
+    ? ((currentBatchFiles / files.length) * 100) * Math.min(batchElapsed / 30, 1)
     : 0;
   const progress = Math.min(completedProgress + batchContribution, 100);
 
-  // Batch progress: smooth fill based on 50s expected time
-  const batchProgress = Math.min((batchElapsed / 50) * 100, 100);
+  // Batch progress: smooth fill based on 30s expected time
+  const batchProgress = Math.min((batchElapsed / 30) * 100, 100);
 
   const handleAction = async () => {
     if (allDone) {
@@ -88,17 +91,25 @@ export function Sidebar({ mode }: SidebarProps) {
   const getButtonText = () => {
     if (allDone) return t.actions.download;
     if (isProcessing) return t.actions.processing;
-    return mode === "colorize" ? t.actions.colorize : t.actions.translate;
+    if (mode === "colorize") return t.actions.colorize;
+    if (mode === "translate") return t.actions.translate;
+    return t.actions.colorizeAndTranslate;
   };
 
-  // Validation
+  // Validation - colorize only needs API key, translate and colorizeAndTranslate need languages too
   const canProcess = apiKey.trim() !== "" && 
     (mode === "colorize" || (fromLanguage.trim() !== "" && toLanguage.trim() !== ""));
+
+  const getTitle = () => {
+    if (mode === "colorize") return t.nav.colorize;
+    if (mode === "translate") return t.nav.translate;
+    return t.nav.colorizeAndTranslate;
+  };
 
   return (
     <aside className="w-80 bg-sec border-l border-sec p-6 flex flex-col h-full">
       <h2 className="text-xl font-bold text-pri mb-6 capitalize">
-        {mode === "colorize" ? t.nav.colorize : t.nav.translate}
+        {getTitle()}
       </h2>
 
       <div className="flex-1 space-y-6 overflow-y-auto">
@@ -170,8 +181,8 @@ export function Sidebar({ mode }: SidebarProps) {
           </div>
         </div>
 
-        {/* Language inputs (translate only) */}
-        {mode === "translate" && (
+        {/* Language inputs (translate and colorizeAndTranslate) */}
+        {(mode === "translate" || mode === "colorizeAndTranslate") && (
           <>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-sec">
@@ -196,6 +207,24 @@ export function Sidebar({ mode }: SidebarProps) {
                 placeholder={t.sidebar.toPlaceholder}
                 className="w-full px-3 py-2 rounded-md border border-sec bg-pri text-pri placeholder:text-ter focus:outline-none focus:ring-2 focus:ring-[var(--hl-bd)]"
               />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-sec">
+                {t.sidebar.displayBothLanguages}
+              </label>
+              <button
+                type="button"
+                onClick={() => setDisplayBothLanguages(!displayBothLanguages)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  displayBothLanguages ? "bg-[var(--hl-bd)]" : "bg-ter"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    displayBothLanguages ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
           </>
         )}

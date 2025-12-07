@@ -6,6 +6,7 @@ export const en = {
   nav: {
     colorize: "Colorize",
     translate: "Translate",
+    colorizeAndTranslate: "Colorize & Translate",
   },
 
   // Theme
@@ -26,6 +27,10 @@ export const en = {
       title: "Translate",
       description: "Translate manga text to different languages",
     },
+    colorizeAndTranslateCard: {
+      title: "Colorize & Translate",
+      description: "Colorize and translate manga pages in one step",
+    },
   },
 
   // File upload
@@ -45,15 +50,18 @@ export const en = {
     toLanguage: "To Language",
     fromPlaceholder: "Japanese",
     toPlaceholder: "English",
+    displayBothLanguages: "Display both languages",
   },
 
   // Actions
   actions: {
     colorize: "Colorize!",
     translate: "Translate!",
+    colorizeAndTranslate: "Colorize & Translate!",
     processing: "Processing...",
     download: "Download Zip",
     clear: "Clear All",
+    rerun: "Rerun",
   },
 
   // Sorting
