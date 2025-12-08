@@ -205,6 +205,395 @@ Lippmann 등~\cite{mangamllm}이 2025년 COLING에서 발표한 연구는 multim
 
 \newpage
 
+% 데이터
+\section{데이터}
+
+\subsection{데이터 수집 방법}
+
+본 연구에서는 실험을 위한 manga 데이터를 pixiv 플랫폼에서 수집하였다. 데이터 수집에는 gallery-dl~\cite{galleryDL}을 사용하였다. gallery-dl은 다양한 이미지 호스팅 사이트에서 이미지 갤러리와 컬렉션을 다운로드할 수 있는 command-line 도구로, pixiv의 특정 게시물 페이지에서 manga 이미지를 효율적으로 다운로드할 수 있다.
+
+수집된 데이터는 두 가지 manga 작품으로 구성되며, 각각 다른 특성을 가지고 있어 시스템의 다양한 측면을 평가하는 데 활용되었다.
+
+\subsection{合コンに行ったら女がいなかった話}
+
+첫 번째 실험 데이터는 蒼川なな(Aokawa Nana) 작가의 「合コンに行ったら女がいなかった話」(How I Attended an All-Guy's Mixer)~\cite{pixiv_goukon}이다. 이 작품은 pixiv에서 연재되고 있는 창작 manga로, 일본어로 작성되어 있다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figure/136886858_p0.png}
+    \caption{「合コンに行ったら女がいなかった話」 표지}
+    \label{fig:pixiv1_cover}
+\end{figure}
+
+해당 작품은 총 18페이지로 구성되어 있으며, 전체가 흑백(monochrome)으로 제작되어 있다. 이러한 특성은 채색 시스템의 성능을 평가하기에 적합하다. 여러 캐릭터가 등장하며 다양한 배경과 상황이 묘사되어 있어, 캐릭터 및 배경 일관성 유지 능력을 종합적으로 테스트할 수 있다.
+
+\subsection{神は友達が少ない}
+
+두 번째 실험 데이터는 ピノ/エス(Pino/Esu) 작가의 「神は友達が少ない」(God Has Few Friends)~\cite{pixiv_kami}이다. 이 작품 역시 pixiv에서 공개된 창작 manga로, 일본어로 작성되어 있다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figure/107422372_p0.png}
+    \caption{「神は友達が少ない」 표지}
+    \label{fig:pixiv2_cover}
+\end{figure}
+
+해당 작품은 총 15페이지로 구성되어 있으며, 컬러 표지 1페이지와 흑백 14페이지로 이루어져 있다. 특히 이 작품에는 Genshin Impact라는 게임의 캐릭터들이 등장한다. 이러한 널리 알려진 캐릭터를 포함한 데이터는 생성 모델이 사전 학습된 지식을 활용하여 캐릭터 일관성을 유지하는 능력을 평가하는 데 유용하다.
+
+\newpage
+
+% 연구 방법
+\section{연구 방법}
+
+\subsection{Baseline}
+
+Baseline 시스템으로는 Gemini 웹 애플리케이션(\url{https://gemini.google.com/app})을 사용하여 수동으로 채색 및 번역 작업을 수행하는 방식을 채택하였다. 이 방식에서는 페이지 한 장을 처리하고 완료되면 다음 페이지를 순차적으로 처리하는 sequential한 접근법을 사용한다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/baseline_translate_batch_structure.png}
+        \caption{Baseline 번역 처리 구조}
+        \label{fig:baseline_translate}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/baseline_colorization_batch_structure.png}
+        \caption{Baseline 채색 처리 구조}
+        \label{fig:baseline_colorization}
+    \end{subfigure}
+    \caption{Baseline 시스템의 처리 구조}
+    \label{fig:baseline_structure}
+\end{figure}
+
+채색 일관성 유지를 위해 이전에 생성된 모든 colorized image를 reference로 전달하는 방식을 사용한다. 즉, $n$번째 페이지를 채색할 때는 1번부터 $n-1$번까지의 채색된 이미지를 모두 context로 제공한다. 이 방식은 일관성 유지에는 효과적이지만, 페이지 수가 증가함에 따라 처리 시간이 선형적으로 증가하는 단점이 있다.
+
+\subsection{Nano Manana}
+
+Nano Manana는 본 연구에서 개발한 manga 채색 및 번역 자동화 시스템이다. Gemini의 Imagen 3 모델을 기반으로 하며, batch 처리와 최적화된 프롬프트를 통해 baseline 대비 높은 효율성과 품질을 달성한다.
+
+\subsubsection{Batch 구현}
+
+Nano Manana의 핵심 설계 원칙은 효율적인 batch 처리를 통한 속도 향상이다. 번역과 채색 작업에 대해 각각 다른 batch 처리 전략을 적용하였다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/nano_manana_translate_batch_structure.png}
+        \caption{Nano Manana 번역 batch 구조}
+        \label{fig:nano_translate_batch}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/nano_manana_colorization_batch_structure.png}
+        \caption{Nano Manana 채색 batch 구조}
+        \label{fig:nano_colorization_batch}
+    \end{subfigure}
+    \caption{Nano Manana 시스템의 batch 처리 구조}
+    \label{fig:nano_batch_structure}
+\end{figure}
+
+번역 작업의 경우, \texttt{batch\_size}만큼의 페이지를 한 번에 병렬로 처리하고, 모든 페이지가 완료될 때까지 대기한 후 다음 batch를 처리한다. 번역은 각 페이지가 독립적으로 처리될 수 있으므로 완전한 병렬화가 가능하다.
+
+채색 작업의 경우, 일관성 유지를 위해 이전에 완료된 페이지들을 reference로 활용해야 하므로 보다 복잡한 전략이 필요하다. 각 batch에서 $\min(\text{batchNumber}, \text{batchSize}, \text{completedCount})$개의 reference 이미지를 전달하고, 동일한 수의 output 이미지를 batch로 생성한다. 여기서 \texttt{batchNumber}는 현재 batch의 순번, \texttt{completedCount}는 현재까지 완료된 페이지 수를 의미한다. 첫 번째 batch에서는 \texttt{completedCount}가 0이므로 예외적으로 1을 사용한다.
+
+\subsubsection{프롬프트 설계}
+
+효과적인 프롬프트 설계는 생성 결과의 품질에 직접적인 영향을 미친다. 본 연구에서는 번역, 채색, 그리고 번역과 채색을 동시에 수행하는 세 가지 유형의 프롬프트를 설계하였다.
+
+\paragraph{번역 프롬프트}
+번역 프롬프트는 다음과 같은 핵심 지침을 포함한다.
+
+\begin{lstlisting}[caption={번역 프롬프트 예시}]
+Translate this manga page from Japanese to Korean. 
+
+IMPORTANT TRANSLATION GUIDELINES:
+- Do NOT translate literally word-by-word. Instead, think about 
+  the context, character emotions, and scene atmosphere.
+- Adapt the translation to sound natural in Korean while 
+  preserving the original meaning and tone.
+- Consider manga-specific expressions, onomatopoeia, and cultural 
+  nuances when translating.
+- Make the dialogue flow naturally as if it was originally 
+  written in Korean.
+
+IMAGE REQUIREMENTS:
+- Maintain all characters, backgrounds, speech balloon shapes, 
+  panel grids, and manga structure.
+- The original image size is 2129x3000. Make image which has 
+  EXACTLY SAME ratio and layout with original one.
+- Translate speech balloon text, onomatopoeia, handwritten text, 
+  and all other texts that are not in Korean.
+- Keep all visual elements unchanged except for the translated text.
+\end{lstlisting}
+
+번역 프롬프트에서는 단순한 직역이 아닌 맥락과 감정을 고려한 자연스러운 번역을 유도한다. 또한 원본 이미지의 비율과 레이아웃을 정확히 유지하도록 명시하여 출력 이미지의 품질을 보장한다.
+
+\paragraph{채색 프롬프트}
+채색 프롬프트는 첫 번째 페이지와 이후 페이지에 대해 다른 구조를 가진다. 첫 번째 페이지에서는 reference 없이 채색을 수행하고, 이후 페이지에서는 이전에 채색된 페이지들을 reference로 제공한다.
+
+\begin{lstlisting}[caption={채색 프롬프트 예시 (첫 번째 페이지)}]
+Colorize the manga page below. Refer to no reference images to 
+maintain consistency in character eye color, skin color, hair 
+color, and clothing color.
+
+COLORING STYLE REQUIREMENTS:
+- Apply vibrant, rich, and diverse colors throughout the entire 
+  image.
+- Do NOT leave any area uncolored - fill every part with 
+  appropriate colors including backgrounds, objects, and small 
+  details.
+- Use a colorful and visually appealing palette that brings the 
+  manga to life.
+- Add depth and dimension with shading and highlights where 
+  appropriate.
+- Make the coloring look professional and polished like a 
+  published color manga.
+
+CONSISTENCY REQUIREMENTS:
+- Maintain consistency for the same character, but if the 
+  character is wearing new clothing, draw them with appropriate 
+  different clothing.
+- Maintain cosmetic features (eye color, hair color, skin tone) 
+  consistently for each character across all pages.
+\end{lstlisting}
+
+여러 reference를 사용하는 경우, 프롬프트 앞부분에 다음과 같이 reference 이미지들을 명시한다.
+
+\begin{lstlisting}[caption={채색 프롬프트 예시 (reference 사용)}]
+This is reference page 1 (already colorized):
+[Image: page1]
+
+This is reference page 2 (already colorized):
+[Image: page2]
+
+Colorize page 3:
+[Image: page3]
+
+Colorize the manga page below. ...
+\end{lstlisting}
+
+\paragraph{채색 및 번역 통합 프롬프트}
+채색과 번역을 동시에 수행하는 프롬프트는 위의 두 프롬프트의 요소를 통합하여 구성한다. 이를 통해 한 번의 API 호출로 두 가지 작업을 동시에 수행할 수 있어 효율성이 향상된다.
+
+\subsubsection{이중 언어 표시}
+
+Nano Manana는 이중 언어(bilingual) 표시 기능을 지원한다. 이 기능은 원본 언어와 번역된 언어를 동시에 표시하여, 언어 학습이나 번역 검증에 유용하게 활용될 수 있다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/bilingual_translation.png}
+    \caption{이중 언어 표시 결과 예시}
+    \label{fig:bilingual}
+\end{figure}
+
+이중 언어 표시를 위해 프롬프트에 다음과 같은 지침을 추가한다.
+
+\begin{lstlisting}[caption={이중 언어 표시 프롬프트}]
+BILINGUAL DISPLAY MODE:
+- Display BOTH Japanese and English in the output image.
+- Show the original English text at the TOP of each speech balloon.
+- Show the translated English text at the BOTTOM of each speech 
+  balloon.
+- Both languages should be clearly visible and readable.
+- Adjust font sizes if necessary to fit both languages in the 
+  speech balloons.
+\end{lstlisting}
+
+\subsubsection{향상된 채색 품질}
+
+프롬프트 엔지니어링을 통해 채색 품질을 향상시킬 수 있음을 확인하였다. 특히 다음과 같은 지침을 추가함으로써 그림자와 빛 효과가 개선된 다채로운 채색 결과를 얻을 수 있었다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/enhanced_colorization_comparison.png}
+    \caption{향상된 채색 품질 비교}
+    \label{fig:enhanced_colorization}
+\end{figure}
+
+\begin{lstlisting}[caption={향상된 채색을 위한 프롬프트}]
+COLORING REQUIREMENTS:
+- Apply vibrant, rich, and diverse colors throughout the entire 
+  image.
+- Use a colorful and visually appealing palette that brings the 
+  manga to life.
+- Add depth and dimension with shading and highlights where 
+  appropriate.
+- Make the coloring look professional and polished like a 
+  published color manga.
+\end{lstlisting}
+
+Figure~\ref{fig:enhanced_colorization}에서 확인할 수 있듯이, 해당 프롬프트를 추가함으로써 단순한 평면적 채색이 아닌, 입체감 있는 그림자와 하이라이트가 적용된 전문적인 수준의 채색 결과를 얻을 수 있었다.
+
+\subsubsection{웹사이트 배포}
+
+개발된 Nano Manana 시스템은 웹 애플리케이션 형태로 배포되어 누구나 사용할 수 있도록 공개하였다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/nano_manana_web_hero.png}
+    \caption{Nano Manana 웹사이트 메인 화면}
+    \label{fig:nano_web_hero}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/nano_manana_web_working.png}
+    \caption{Nano Manana 웹사이트 작동 화면}
+    \label{fig:nano_web_working}
+\end{figure}
+
+웹사이트는 \url{https://nano-manana.vercel.app}에서 접근할 수 있다. 사용자는 manga 이미지를 업로드하고 원하는 작업(채색, 번역, 또는 둘 다)을 선택하여 결과를 얻을 수 있다.
+
+\subsection{시도했지만 실패한 방법들}
+
+본 연구 과정에서 일관성 향상과 효율성 개선을 위해 여러 가지 방법을 시도하였으나, 일부는 기대한 성과를 달성하지 못하였다. 이러한 실패 사례들은 향후 연구의 방향을 설정하는 데 중요한 교훈을 제공한다.
+
+\subsubsection{Model Sheet 생성}
+
+캐릭터 일관성 향상과 input token 수 절감을 위해 각 캐릭터의 전신 model sheet를 생성하여 항상 reference로 제공하는 방법을 시도하였다. Model sheet란 각 캐릭터가 정자세로 전신을 보이고 있는 참조 이미지로, 애니메이션이나 게임 제작에서 캐릭터 디자인의 일관성을 유지하기 위해 널리 사용되는 방식이다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{figure/model_sheet_expected.png}
+    \caption{기대한 Model Sheet 형태}
+    \label{fig:model_sheet_expected}
+\end{figure}
+
+여러 manga 페이지를 입력으로 제공하고, 등장하는 모든 캐릭터의 model sheet를 생성하도록 요청하였다. 이상적으로는 Figure~\ref{fig:model_sheet_expected}와 같이 각 캐릭터의 전신이 명확하게 표현된 sheet가 생성되기를 기대하였다.
+
+\begin{lstlisting}[caption={Model Sheet 생성 프롬프트}]
+Create a structured character model sheet based strictly on the 
+provided black and white manga image. It is absolutely necessary 
+that you only extract the specific characters and outfit designs 
+actually present in the source photo; do not invent any new 
+characters or create any new outfit variations not shown in the 
+original image. The final output should be organized into exactly 
+two distinct horizontal rows. In the very first top row, arrange 
+a black and white model sheet displaying a single, clear 
+full-body pose for each unique character found in the input.
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/model_sheet_failed/ex1.png}
+        \caption{실패 사례 1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/model_sheet_failed/ex2.png}
+        \caption{실패 사례 2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/model_sheet_failed/ex3.png}
+        \caption{실패 사례 3}
+    \end{subfigure}
+    \caption{Model Sheet 생성 실패 사례}
+    \label{fig:model_sheet_failed}
+\end{figure}
+
+그러나 실험 결과, 다음과 같은 문제들이 발생하였다. 첫째, 모델이 입력 이미지에 과도하게 집중하여 model sheet라는 새로운 형태의 출력을 생성하지 못하였다. 둘째, 원본에 등장하지 않는 캐릭터를 임의로 생성하거나, 반대로 실제 등장하는 캐릭터를 파악하지 못하는 경우가 빈번하였다. 이는 현재 생성 모델이 기존 이미지의 특정 부분을 편집하는 작업에는 능숙하지만, 이미지 전체를 새로운 구조로 재구성하는 작업에는 한계가 있음을 시사한다.
+
+\subsubsection{Grid Batch}
+
+일관성 향상과 input token 수 절감을 위해 여러 페이지를 하나의 grid 이미지로 합쳐서 처리하는 방법을 시도하였다. 예를 들어, 2$\times$1, 3$\times$1, 2$\times$2, 3$\times$3 등의 grid로 여러 페이지를 합친 후 한 번에 채색을 요청하는 방식이다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_2x1.png}
+        \caption{2$\times$1 Grid}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_3x1.png}
+        \caption{3$\times$1 Grid}
+    \end{subfigure}
+    \caption{Grid Batch 처리 예시 (1)}
+    \label{fig:grid_batch_1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_2x2.png}
+        \caption{2$\times$2 Grid}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_3x3.png}
+        \caption{3$\times$3 Grid}
+    \end{subfigure}
+    \caption{Grid Batch 처리 예시 (2)}
+    \label{fig:grid_batch_2}
+\end{figure}
+
+그러나 이 방법은 두 가지 심각한 문제를 야기하였다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure/grid_batch_low_consistency.png}
+    \caption{Grid Batch의 낮은 일관성 문제}
+    \label{fig:grid_low_consistency}
+\end{figure}
+
+첫째, 2$\times$1 grid만 사용해도 캐릭터가 완전히 다른 외모로 채색되거나, 서로 다른 캐릭터들이 동일한 복장을 착용하는 등 일관성이 크게 저하되었다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_original_vs_1x1.png}
+        \caption{원본 vs 1$\times$1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/grid_batch_2x2_vs_3x3.png}
+        \caption{2$\times$2 vs 3$\times$3}
+    \end{subfigure}
+    \caption{Grid 크기에 따른 품질 저하}
+    \label{fig:grid_quality}
+\end{figure}
+
+둘째, grid 크기가 커질수록 이미지가 전체적으로 흐려지고(blurry), 특히 2$\times$2 이상의 grid에서는 캐릭터의 얼굴이 일그러져 기괴한 형태로 변형되는 현상이 발생하였다. 이는 생성 모델의 해상도 제한과 관련된 것으로 추정된다.
+
+\subsubsection{Bounding Box Identifier}
+
+캐릭터 일관성 향상을 위해 각 캐릭터를 특정 색상의 bounding box로 표시하여 모델이 개별 캐릭터를 명확하게 인식하도록 유도하는 방법을 시도하였다.
+
+\begin{lstlisting}[caption={Bounding Box 프롬프트}]
+Colorize this manga page. Maintain consistency of character. 
+Maintain speech balloons and texts. Do not modify speech 
+balloons and texts. Each character is highlighted by rectangular 
+box with specific color. You can figure out each character with 
+this box. Remove all the boxes in final result.
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/bbox_identifier_fail.png}
+    \caption{Bounding Box 제거 실패 사례}
+    \label{fig:bbox_fail}
+\end{figure}
+
+그러나 프롬프트에서 bounding box를 최종 결과에서 제거하라고 명시적으로 지시했음에도 불구하고, 생성된 이미지에 box가 그대로 남아있는 문제가 발생하였다. 이는 현재 생성 모델이 이미지의 특정 요소를 선택적으로 제거하는 작업에 한계가 있음을 보여준다.
+
+\newpage
+
 % 참고문헌
 \bibliographystyle{plain}
 \begin{thebibliography}{9}
