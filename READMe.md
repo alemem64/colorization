@@ -43,8 +43,8 @@ Easy-to-use web interface deployed at [nano-manana.vercel.app](https://nano-mana
 ![Result](python/docs/report/final_report/figure/pixiv1_original_vs_manana_ct_b5/p1.png)
 
 ### Japanese → English Translation + Colorization
-![Original](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p0.png)
-![Result](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p1.png)
+![Original](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p1.png)
+![Result](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p2.png)
 
 ## Comparison with Related Work
 
