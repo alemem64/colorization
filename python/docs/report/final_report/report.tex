@@ -594,6 +594,117 @@ this box. Remove all the boxes in final result.
 
 \newpage
 
+% 실험 결과
+\section{실험 결과}
+
+\subsection{처리 결과}
+
+Nano Manana 시스템을 사용하여 두 가지 manga 데이터셋에 대해 채색 및 번역 실험을 수행하였다. 상세한 처리 결과는 Appendix A, B, C에 수록하였다.
+
+Appendix A에서는 baseline 시스템(Gemini 웹앱을 사용한 순차적 처리)의 결과를 제시한다. 「合コンに行ったら女がいなかった話」 18페이지에 대한 원본과 채색 결과를 비교하여 확인할 수 있다.
+
+Appendix B에서는 Nano Manana를 사용하여 동일한 manga를 일본어에서 한국어로 번역하고 채색한 결과를 제시한다. Baseline 대비 더 다채로운 색 표현이 이루어졌으나, 일부 페이지에서 원본과 완전히 다른 장면이 생성되는 빈도가 증가하였다.
+
+Appendix C에서는 「神は友達が少ない」를 일본어에서 영어로 번역하고 채색한 결과를 제시한다. 이 데이터셋에서는 캐릭터의 일관성이 특히 잘 유지되었는데, 이는 Genshin Impact라는 게임의 캐릭터가 인터넷에 널리 알려져 있어 모델의 사전 학습에 많이 포함되었기 때문으로 추정된다.
+
+\subsection{Nano Manana의 한계}
+
+실험 과정에서 Nano Manana 시스템의 몇 가지 한계점이 발견되었다. 이러한 한계는 주로 기반 모델인 Gemini Imagen 3의 특성에 기인한다.
+
+\subsubsection{완전히 새로운 스타일이 생성되는 문제}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p13.png}
+    \caption{원본과 완전히 다른 스타일로 생성된 사례}
+    \label{fig:different_style}
+\end{figure}
+
+일부 페이지에서 같은 장소와 내용임에도 불구하고 완전히 다른 스타일의 인물이 그려지는 현상이 발생하였다. 흥미로운 점은 번역 대상 언어에 따라 생성되는 스타일이 달라진다는 것이다. 한국어로 번역을 요청하면 한국 웹툰 스타일의 그림이 생성되는 경향이 있었고, 영어로 번역을 요청하면 서양 cartoon 느낌의 그림이 생성되는 경향이 있었다. 프롬프트에서 새로운 스타일을 생성하지 말라고 강조해도 간헐적으로 이러한 현상이 발생하였다.
+
+\subsubsection{완전히 다른 장면이 생성되는 문제}
+
+Figure~\ref{fig:different_style}에서 확인할 수 있듯이, 일부 경우에서 원본과 장면 자체가 완전히 달라지는 문제가 발생하였다. 번역된 텍스트의 내용을 확인하면 상황과 맥락도 원본과 전혀 다르게 생성되어 있음을 알 수 있다. 이는 생성 모델이 이미지를 편집하는 것이 아니라 완전히 새로운 이미지를 생성해버리는 것으로, manga 채색 및 번역의 핵심 요구사항인 원본 보존에 심각한 문제가 된다.
+
+\subsubsection{다른 비율로 생성되는 문제}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/nano_manana_fail_different_aspect_ratio.png}
+    \caption{원본과 다른 비율로 생성된 사례}
+    \label{fig:different_ratio}
+\end{figure}
+
+프롬프트에서 원본 이미지의 비율(aspect ratio)을 명확하게 명시했음에도 불구하고, 생성된 이미지가 완전히 다른 비율로 출력되는 경우가 있었다. 이러한 문제들은 모두 Gemini Imagen 3 모델 자체의 특성에서 비롯되는 것으로, 프롬프트 엔지니어링만으로는 완전히 해결하기 어려운 한계가 있다.
+
+\subsection{API 동작 비용}
+
+Nano Manana 시스템의 API 사용량과 비용을 분석하였다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/nano_manana_api_token_chart.png}
+    \caption{API Token 사용량 분포}
+    \label{fig:api_token_chart}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{API Token 및 비용 통계}
+    \label{tab:api_stats}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{항목} & \textbf{평균} & \textbf{표준편차} & \textbf{합계} \\
+        \midrule
+        Prompt Text Token & 207.56 & 162.64 & 22,832 \\
+        Prompt Image Token & 602.78 & 511.58 & 66,306 \\
+        Thought Token & 611.95 & 348.88 & 67,315 \\
+        Candidate Image Token & 1,120.00 & 0.00 & 123,200 \\
+        Total Token & 2,542.30 & 836.15 & 279,653 \\
+        \midrule
+        Prompt Text Price (\$) & 0.00 & 0.00 & 0.05 \\
+        Prompt Image Price (\$) & 0.00 & 0.00 & 0.13 \\
+        Thought Price (\$) & 0.01 & 0.00 & 0.81 \\
+        Candidate Image Price (\$) & 0.13 & 0.00 & 14.78 \\
+        Total Price (\$) & 0.14 & 0.00 & 15.77 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+전체 프로젝트 진행 과정에서 총 155회의 API 요청이 수행되었으며, 총 API 비용은 약 \$15.77(한화 약 33,372원)이 소요되었다. API 비용의 대부분은 candidate image token(생성된 이미지)에서 발생하였으며, 이는 전체 비용의 약 94\%를 차지한다.
+
+\subsection{소스코드 통계}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure/git_contribution_stats.png}
+    \caption{Git Contribution 통계}
+    \label{fig:git_stats}
+\end{figure}
+
+본 연구를 위해 작성된 소스코드의 통계는 다음과 같다. 총 23,130줄의 코드가 추가되었으며, 2,740줄의 코드가 삭제되었다. 이는 웹 애플리케이션, API 통신, batch 처리 로직, 프롬프트 관리 등 전체 시스템 구축에 필요한 코드를 포함한다.
+
+\newpage
+
+% 결론
+\section{결론}
+
+본 연구에서는 manga의 채색과 번역을 자동화하면서 전체 페이지에 걸쳐 배경과 캐릭터의 일관성을 유지하는 Nano Manana 시스템을 개발하였다. 주요 연구 성과와 결론은 다음과 같다.
+
+첫째, 대다수의 경우에서 높은 품질의 채색 결과를 생성할 수 있었다. 프롬프트 엔지니어링을 통해 그림자와 빛 효과가 향상된 다채로운 채색이 가능하며, baseline 시스템 대비 더 전문적인 수준의 결과물을 얻을 수 있었다.
+
+둘째, 이중 언어 번역과 의성어, 의태어, 물체 내 텍스트를 포함한 포괄적인 번역이 가능하다. 기존 연구들이 텍스트만 번역하는 것과 달리, Nano Manana는 역본 작업과 식질 작업을 통합하여 end-to-end로 번역된 manga 이미지를 생성한다.
+
+셋째, batch 처리 구조를 통해 baseline 대비 번역 작업에서 최대 10배, 채색 작업에서 최대 5배의 속도 향상을 달성하였다. 채색의 경우 reference 이미지 최대 개수가 5개로 제한되어 있어 5배가 상한이다.
+
+그러나 본 시스템에는 몇 가지 한계가 존재한다. 높은 빈도로 원본에 없는 장면이 생성되거나 캐릭터 일관성이 무너지는 경우가 관찰되었다. 이러한 문제는 기반 모델인 Gemini Imagen 3의 특성에 기인하며, model sheet 생성, grid batch, bounding box identifier 등 여러 방법을 시도하였으나 근본적인 해결에는 이르지 못하였다.
+
+당장의 해결책으로는 사용자 확인 기반의 품질 관리 시스템을 제안한다. 생성된 각 페이지를 사용자가 확인하여 accept 또는 reject를 선택하고, reject된 페이지는 자동으로 재생성(rerun)하는 방식이다. 이를 통해 최종 결과물의 품질을 보장하면서도 자동화의 이점을 유지할 수 있다.
+
+향후 연구로는 캐릭터 인식 및 추적 기술을 도입하여 일관성 유지 능력을 향상시키는 방안, 그리고 사용자 피드백을 학습에 반영하는 강화학습 기반 접근법 등을 고려할 수 있다.
+
+\newpage
+
 % 참고문헌
 \bibliographystyle{plain}
 \begin{thebibliography}{9}
@@ -632,5 +743,430 @@ GitHub, 2025.
 \url{https://github.com/mikf/gallery-dl}
 
 \end{thebibliography}
+
+\newpage
+
+% Appendix
+\appendix
+
+\section{Baseline 처리 결과}
+\label{appendix:baseline}
+
+본 Appendix에서는 baseline 시스템(Gemini 웹앱을 사용한 순차적 처리)의 결과를 제시한다. 「合コンに行ったら女がいなかった話」 18페이지에 대한 원본과 채색 결과를 비교할 수 있다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p0.png}
+        \caption{Page 0}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p1.png}
+        \caption{Page 1}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p2.png}
+        \caption{Page 2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p3.png}
+        \caption{Page 3}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p4.png}
+        \caption{Page 4}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p5.png}
+        \caption{Page 5}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p6.png}
+        \caption{Page 6}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p7.png}
+        \caption{Page 7}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p8.png}
+        \caption{Page 8}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p9.png}
+        \caption{Page 9}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p10.png}
+        \caption{Page 10}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p11.png}
+        \caption{Page 11}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p12.png}
+        \caption{Page 12}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p13.png}
+        \caption{Page 13}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p14.png}
+        \caption{Page 14}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p15.png}
+        \caption{Page 15}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p16.png}
+        \caption{Page 16}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_nbp-base/p17.png}
+        \caption{Page 17}
+    \end{subfigure}
+    \caption{Baseline 처리 결과: 「合コンに行ったら女がいなかった話」 원본 vs 채색}
+    \label{fig:appendix_baseline}
+\end{figure}
+
+\newpage
+
+\section{Nano Manana 일본어 → 한국어 처리 결과}
+\label{appendix:nano_jp_kr}
+
+본 Appendix에서는 Nano Manana를 사용하여 「合コンに行ったら女がいなかった話」를 일본어에서 한국어로 번역하고 채색한 결과를 제시한다. Baseline 대비 더 다채로운 색 표현이 이루어졌으나, 일부 페이지에서 원본과 완전히 다른 장면이 생성되는 빈도가 증가하였다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p0.png}
+        \caption{Page 0}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p1.png}
+        \caption{Page 1}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p2.png}
+        \caption{Page 2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p3.png}
+        \caption{Page 3}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p4.png}
+        \caption{Page 4}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p5.png}
+        \caption{Page 5}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p6.png}
+        \caption{Page 6}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p7.png}
+        \caption{Page 7}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p8.png}
+        \caption{Page 8}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p9.png}
+        \caption{Page 9}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p10.png}
+        \caption{Page 10}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p11.png}
+        \caption{Page 11}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p12.png}
+        \caption{Page 12}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p13.png}
+        \caption{Page 13}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p14.png}
+        \caption{Page 14}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p15.png}
+        \caption{Page 15}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p16.png}
+        \caption{Page 16}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p17.png}
+        \caption{Page 17}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{figure/pixiv1_original_vs_manana_ct_b5/p18.png}
+    \caption{Nano Manana 일본어→한국어 처리 결과: 「合コンに行ったら女がいなかった話」}
+    \label{fig:appendix_nano_jp_kr}
+\end{figure}
+
+\newpage
+
+\section{Nano Manana 일본어 → 영어 처리 결과}
+\label{appendix:nano_jp_en}
+
+본 Appendix에서는 Nano Manana를 사용하여 「神は友達が少ない」를 일본어에서 영어로 번역하고 채색한 결과를 제시한다. 이 데이터셋에서는 캐릭터의 일관성이 특히 잘 유지되었는데, 이는 Genshin Impact라는 게임의 캐릭터가 인터넷에 널리 알려져 있어 모델의 사전 학습에 많이 포함되었기 때문으로 추정된다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p0.png}
+        \caption{Page 0}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p1.png}
+        \caption{Page 1}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p2.png}
+        \caption{Page 2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p3.png}
+        \caption{Page 3}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p4.png}
+        \caption{Page 4}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p5.png}
+        \caption{Page 5}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p6.png}
+        \caption{Page 6}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p7.png}
+        \caption{Page 7}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p8.png}
+        \caption{Page 8}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p9.png}
+        \caption{Page 9}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p10.png}
+        \caption{Page 10}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p11.png}
+        \caption{Page 11}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p12.png}
+        \caption{Page 12}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p13.png}
+        \caption{Page 13}
+    \end{subfigure}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p14.png}
+        \caption{Page 14}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/pixiv2_original_vs_manana_ct_b5/p15.png}
+        \caption{Page 15}
+    \end{subfigure}
+    \caption{Nano Manana 일본어→영어 처리 결과: 「神は友達が少ない」}
+    \label{fig:appendix_nano_jp_en}
+\end{figure}
 
 \end{document}

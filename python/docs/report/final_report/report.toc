@@ -1,0 +1,40 @@
+\contentsline {section}{요약}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}서론}{4}{section.1}%
+\contentsline {subsection}{\numberline {1.1}연구 주제 소개}{4}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}연구의 중요성}{5}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}결과 요약}{5}{subsection.1.3}%
+\contentsline {section}{\numberline {2}관련 연구}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}MangaDiT}{7}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}MangaNinja}{8}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Context-Informed Machine Translation of Manga using Multimodal Large Language Models}{9}{subsection.2.3}%
+\contentsline {section}{\numberline {3}데이터}{11}{section.3}%
+\contentsline {subsection}{\numberline {3.1}데이터 수집 방법}{11}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}合コンに行ったら女がいなかった話}{11}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}神は友達が少ない}{12}{subsection.3.3}%
+\contentsline {section}{\numberline {4}연구 방법}{13}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Baseline}{13}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Nano Manana}{13}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}Batch 구현}{13}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}프롬프트 설계}{14}{subsubsection.4.2.2}%
+\contentsline {paragraph}{번역 프롬프트}{14}{subsubsection.4.2.2}%
+\contentsline {paragraph}{채색 프롬프트}{15}{lstnumber.1.20}%
+\contentsline {paragraph}{채색 및 번역 통합 프롬프트}{16}{lstnumber.3.10}%
+\contentsline {subsubsection}{\numberline {4.2.3}이중 언어 표시}{16}{subsubsection.4.2.3}%
+\contentsline {subsubsection}{\numberline {4.2.4}향상된 채색 품질}{18}{subsubsection.4.2.4}%
+\contentsline {subsubsection}{\numberline {4.2.5}웹사이트 배포}{18}{subsubsection.4.2.5}%
+\contentsline {subsection}{\numberline {4.3}시도했지만 실패한 방법들}{20}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}Model Sheet 생성}{20}{subsubsection.4.3.1}%
+\contentsline {subsubsection}{\numberline {4.3.2}Grid Batch}{21}{subsubsection.4.3.2}%
+\contentsline {subsubsection}{\numberline {4.3.3}Bounding Box Identifier}{22}{subsubsection.4.3.3}%
+\contentsline {section}{\numberline {5}실험 결과}{24}{section.5}%
+\contentsline {subsection}{\numberline {5.1}처리 결과}{24}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Nano Manana의 한계}{24}{subsection.5.2}%
+\contentsline {subsubsection}{\numberline {5.2.1}완전히 새로운 스타일이 생성되는 문제}{25}{subsubsection.5.2.1}%
+\contentsline {subsubsection}{\numberline {5.2.2}완전히 다른 장면이 생성되는 문제}{25}{subsubsection.5.2.2}%
+\contentsline {subsubsection}{\numberline {5.2.3}다른 비율로 생성되는 문제}{26}{subsubsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.3}API 동작 비용}{26}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}소스코드 통계}{27}{subsection.5.4}%
+\contentsline {section}{\numberline {6}결론}{28}{section.6}%
+\contentsline {section}{\numberline {A}Baseline 처리 결과}{30}{appendix.A}%
+\contentsline {section}{\numberline {B}Nano Manana 일본어 → 한국어 처리 결과}{33}{appendix.B}%
+\contentsline {section}{\numberline {C}Nano Manana 일본어 → 영어 처리 결과}{37}{appendix.C}%
