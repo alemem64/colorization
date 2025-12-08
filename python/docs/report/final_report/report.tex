@@ -76,6 +76,172 @@
 \tableofcontents
 \newpage
 
+% 요약
+\section*{요약}
+\addcontentsline{toc}{section}{요약}
 
+본 연구는 manga의 채색(colorization)과 번역(translation) 작업을 자동화하면서 전체 페이지에 걸쳐 배경과 캐릭터의 일관성을 유지하는 시스템을 구축하는 것을 목표로 한다. 기존의 line art colorization 모델인 MangaDiT와 MangaNinja는 높은 컴퓨팅 자원을 요구하거나 reference 이미지가 필수적이며, 여러 panel을 동시에 처리하는 데 한계가 있다. 본 연구에서는 Gemini Imagen 3 기반의 Nano Manana 시스템을 개발하여 이러한 한계를 극복하고자 하였다. 제안된 시스템은 batch 처리를 통해 번역 작업에서 최대 10배, 채색 작업에서 최대 5배의 속도 향상을 달성하였다. 또한 의성어, 의태어, 물체 내 텍스트를 포함한 이중 언어 번역과 그림자 및 빛 효과가 향상된 채색이 가능하다. 실험 결과, 대다수의 경우에서 높은 품질의 채색과 번역이 이루어졌으나, 원본에 없는 장면이 생성되거나 일관성이 무너지는 경우가 일부 존재하였다. 이러한 문제는 모델 자체의 특성에 기인하며, 향후 사용자 확인 기반의 재생성 기능을 통해 해결할 수 있을 것으로 기대된다.
+
+\newpage
+
+% 서론
+\section{서론}
+
+\subsection{연구 주제 소개}
+
+Manga, cartoon, manhwa와 같은 작품을 제작할 때 채색 작업은 제작 시간을 2$\sim$3배 이상 증가시키는 주요 요인이다. 이러한 시간적 부담으로 인해 현재까지도 많은 manga 작품들이 흑백(monochrome) 형태로 출판되고 있다. 인공지능을 활용한 자동 채색 기술은 이러한 문제를 해결할 수 있는 유망한 접근법이지만, 다음과 같은 기술적 어려움이 존재한다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure/manga_difficulty_colorization_example.png}
+    \caption{Manga 채색의 어려움 예시}
+    \label{fig:colorization_difficulty}
+\end{figure}
+
+첫째, 캐릭터와 배경을 정확하게 구분하여 적절한 색상을 적용해야 한다. 둘째, 동일한 캐릭터가 여러 페이지에 걸쳐 등장할 때 눈 색깔, 머리카락 색, 피부색, 의상 색상 등의 일관성을 유지해야 한다. 셋째, 동일한 배경이나 물체가 반복적으로 등장할 때 색상의 일관성을 보장해야 한다. 넷째, manga 특유의 panel(칸) 구조를 손상시키지 않으면서 채색을 수행해야 한다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure/manga_difficulty_translation_example.png}
+    \caption{Manga 번역의 어려움 예시}
+    \label{fig:translation_difficulty}
+\end{figure}
+
+번역 작업 또한 상당한 시간과 노력이 필요한 분야이다. Manga 번역은 단순한 텍스트 번역 이상의 복잡성을 가진다. 일반적으로 역본 작업(텍스트를 번역하는 작업)과 식질 작업(번역된 텍스트를 이미지에 자연스럽게 삽입하는 작업)의 두 단계로 구성된다. AI를 활용한 자동 번역에서는 그림 속에 포함된 의성어와 의태어의 자연스러운 번역, 그리고 배경이나 물체에 포함된 텍스트의 일관된 번역이 주요 과제로 남아있다.
+
+\subsection{연구의 중요성}
+
+본 연구는 manga 제작 생태계에 실질적인 기여를 할 수 있는 잠재력을 가진다. 자동화된 채색 및 번역 시스템을 통해 manga 제작에 소요되는 시간을 대폭 단축하면서도 높은 품질을 유지할 수 있다. 이는 개인 창작자부터 출판사에 이르기까지 다양한 규모의 제작 주체들에게 혜택을 제공할 수 있다.
+
+특히 번역 자동화는 manga의 글로벌 확산에 핵심적인 역할을 할 수 있다. 현재 대부분의 manga는 번역 비용과 시간의 제약으로 인해 일본 국내 시장에 한정되어 유통되고 있다~\cite{mangamllm}. 효과적인 자동 번역 시스템의 구축은 더 많은 언어권의 독자들이 다양한 manga 작품을 접할 수 있는 기회를 제공하며, 이는 manga 산업의 글로벌 성장을 촉진할 수 있다.
+
+\subsection{결과 요약}
+
+본 연구에서 개발한 Nano Manana 시스템은 다음과 같은 성과를 달성하였다. Batch 처리 구조를 통해 기존 순차적 처리 방식 대비 번역 작업에서 최대 10배, 채색 작업에서 최대 5배의 속도 향상을 이루었다. 프롬프트 엔지니어링을 통해 그림자와 빛 효과가 개선된 다채로운 채색 결과를 생성할 수 있었다. 또한 의성어, 의태어, 물체 내 텍스트를 포함한 포괄적인 번역이 가능하며, 이중 언어(bilingual) 표시 기능도 구현하였다.
+
+실험 결과, 18페이지 분량의 manga에 대해 대다수의 페이지에서 높은 품질의 채색과 번역이 이루어졌다. 그러나 일부 페이지에서 원본에 없는 장면이 생성되거나 캐릭터 일관성이 무너지는 현상이 관찰되었다. 이러한 문제는 사용된 생성 모델 자체의 특성에 기인하며, 사용자 확인 기반의 재생성(rerun) 기능을 통해 보완할 수 있음을 확인하였다.
+
+\newpage
+
+% 관련 연구
+\section{관련 연구}
+
+\subsection{MangaDiT}
+
+MangaDiT~\cite{mangadit}는 Qiu 등이 2025년에 발표한 line art colorization 모델로, Diffusion Transformer 구조에서 계층적 어텐션(Hierarchical Attention)을 활용하여 reference 이미지를 기반으로 line art를 채색하는 기술이다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/manga_dit.png}
+    \caption{MangaDiT 모델 구조}
+    \label{fig:manga_dit}
+\end{figure}
+
+MangaDiT는 FLUX1.dev를 기반으로 하며, transformer 아키텍처를 사용한다. 이 모델은 reference 이미지의 색상 정보를 계층적 어텐션 메커니즘을 통해 target line art에 효과적으로 전달함으로써, 캐릭터의 색상 일관성을 유지하면서 고품질의 채색 결과를 생성한다. 학습에는 NVIDIA A100 80GB GPU가 사용되었다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figure/manga_dit_install_failed.png}
+    \caption{MangaDiT 설치 실패 화면}
+    \label{fig:manga_dit_fail}
+\end{figure}
+
+본 연구에서 MangaDiT를 직접 실행해보고자 하였으나, 환경 변수 설정 및 conda 환경 버전 충돌 문제로 인해 수 시간의 시도에도 불구하고 설치에 실패하였다. 또한 MangaDiT는 높은 VRAM을 요구하여 일반적인 개인용 GPU(예: RTX 3070 8GB)로는 실행이 불가능하다.
+
+본 연구에서 제안하는 Nano Manana와의 주요 차별점은 다음과 같다. 첫째, MangaDiT는 채색을 위해 reference 이미지가 필수적으로 요구되는 반면, Nano Manana는 reference 없이도 높은 품질의 채색이 가능하다. 둘째, MangaDiT는 단일 line art 캐릭터 처리에 최적화되어 있는 반면, Nano Manana는 여러 panel이 포함된 전체 manga 페이지를 입력으로 받아 처리할 수 있다.
+
+\subsection{MangaNinja}
+
+MangaNinja~\cite{manganinja}는 Liu 등이 2025년에 발표한 line art colorization 모델로, 정밀한 reference following을 통해 line art를 채색하는 기술이다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figure/manga_ninja.png}
+    \caption{MangaNinja 모델 구조}
+    \label{fig:manga_ninja}
+\end{figure}
+
+MangaNinja는 Stable Diffusion 1.5를 기반으로 하며, reference 이미지의 색상과 스타일을 target line art에 정밀하게 적용하는 것을 목표로 한다. 이 모델은 NVIDIA A100 80GB GPU 8장을 사용하여 약 하루 동안 학습되었다. 공식 문서에 따르면 6GB VRAM으로도 inference가 가능하다고 명시되어 있어 직접 실험을 진행하였다.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/manga_ninja_try1.png}
+        \caption{MangaNinja 시도 1}
+        \label{fig:manga_ninja_try1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figure/manga_ninja_try2.png}
+        \caption{MangaNinja 시도 2}
+        \label{fig:manga_ninja_try2}
+    \end{subfigure}
+    \caption{MangaNinja 실험 결과}
+    \label{fig:manga_ninja_results}
+\end{figure}
+
+실험 결과, NVIDIA RTX 3070 8GB 환경에서 한 장의 이미지를 inference하는 데 약 30분이 소요되었다. 약 30GB 크기의 모델을 다운로드하여 실행한 결과, 단일 캐릭터에 대해서도 reference 이미지의 일관성 유지가 충분하지 않았다. 특히 여러 panel을 포함한 전체 manga 페이지를 입력으로 제공하면 이미지가 전체적으로 흐려지고 뭉개지는 현상이 발생하였다.
+
+Nano Manana와의 차별점은 MangaDiT와 유사하다. MangaNinja 역시 reference 이미지가 필수적으로 요구되며, 단일 캐릭터 처리에 최적화되어 있어 여러 panel이 포함된 manga 페이지를 직접 처리하기 어렵다.
+
+\subsection{Context-Informed Machine Translation of Manga using Multimodal Large Language Models}
+
+Lippmann 등~\cite{mangamllm}이 2025년 COLING에서 발표한 연구는 multimodal large language model(MLLM)을 활용하여 manga 번역의 품질을 향상시키는 방법론을 제안한다.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figure/manga_mllm.png}
+    \caption{Context-Informed Manga Translation 개요}
+    \label{fig:manga_mllm}
+\end{figure}
+
+이 연구는 manga 번역이 일반적인 텍스트 번역보다 복잡한 이유로 시각적 요소가 번역 과정에서 모호성을 해소하는 데 필수적이라는 점을 강조한다. 저자들은 MLLM의 vision 컴포넌트를 활용하여 번역 품질을 개선하는 방법론을 제안하였으며, 번역 단위 크기(translation unit size)와 context 길이가 번역 품질에 미치는 영향을 분석하였다. 또한 token 효율적인 manga 번역 접근법을 제안하였다.
+
+주요 기여로는 일본어-영어 번역에서 state-of-the-art 결과를 달성하였으며, 최초의 일본어-폴란드어 병렬 manga 번역 데이터셋을 공개하였다. 또한 다른 연구자들이 LLM의 manga 번역 성능을 벤치마킹할 수 있도록 오픈소스 소프트웨어 도구를 제공하였다.
+
+본 연구에서 제안하는 Nano Manana와의 주요 차별점은 다음과 같다. Lippmann 등의 연구는 텍스트 번역에 집중하여 번역된 텍스트만을 출력으로 제공하는 반면, Nano Manana는 번역된 텍스트가 이미지에 직접 삽입된 결과물을 생성한다. 즉, 역본 작업과 식질 작업을 통합하여 end-to-end로 번역된 manga 이미지를 출력한다. 이를 통해 의성어, 의태어, 배경 텍스트 등 이미지와 밀접하게 결합된 텍스트 요소들도 자연스럽게 번역된 결과물을 얻을 수 있다.
+
+\newpage
+
+% 참고문헌
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{mangadit}
+Qiu, Q., Mao, J., Masui, K., \& Wang, X.,
+\textit{MangaDiT: Reference-Guided Line Art Colorization with Hierarchical Attention in Diffusion Transformers},
+arXiv preprint arXiv:2508.09709, 2025.
+
+\bibitem{manganinja}
+Liu, Z., Cheng, K. L., Chen, X., Xiao, J., Ouyang, H., Zhu, K., Liu, Y., Shen, Y., Chen, Q., \& Luo, P.,
+\textit{MangaNinja: Line Art Colorization with Precise Reference Following},
+arXiv preprint arXiv:2501.08332, 2025.
+
+\bibitem{mangamllm}
+Lippmann, P., Skublicki, K., Tanner, J., Ishiwatari, S., \& Yang, J.,
+\textit{Context-Informed Machine Translation of Manga using Multimodal Large Language Models},
+Proceedings of the 31st International Conference on Computational Linguistics (COLING), pages 3444--3464, Abu Dhabi, UAE, 2025.
+
+\bibitem{pixiv_goukon}
+蒼川なな (Aokawa Nana),
+\textit{「合コンに行ったら女がいなかった話」(How I Attended an All-Guy's Mixer)},
+pixiv, 2025.
+\url{https://www.pixiv.net/en/artworks/136886858}
+
+\bibitem{pixiv_kami}
+ピノ/エス (Pino/Esu),
+\textit{「神は友達が少ない」(God Has Few Friends)},
+pixiv, 2023.
+\url{https://www.pixiv.net/en/artworks/107422372}
+
+\bibitem{galleryDL}
+mikf,
+\textit{gallery-dl: Command-line program to download image galleries and collections from several image hosting sites},
+GitHub, 2025.
+\url{https://github.com/mikf/gallery-dl}
+
+\end{thebibliography}
 
 \end{document}
