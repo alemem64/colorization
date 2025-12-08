@@ -39,16 +39,12 @@ Easy-to-use web interface deployed at [nano-manana.vercel.app](https://nano-mana
 ## Results
 
 ### Japanese → Korean Translation + Colorization
-
-| Original | Colorized & Translated |
-|:--------:|:----------------------:|
-| ![Original](python/docs/report/final_report/figure/pixiv1_original_vs_manana_ct_b5/p0.png) | ![Result](python/docs/report/final_report/figure/pixiv1_original_vs_manana_ct_b5/p1.png) |
+![Original](python/docs/report/final_report/figure/pixiv1_original_vs_manana_ct_b5/p0.png)
+![Result](python/docs/report/final_report/figure/pixiv1_original_vs_manana_ct_b5/p1.png)
 
 ### Japanese → English Translation + Colorization
-
-| Original | Colorized & Translated |
-|:--------:|:----------------------:|
-| ![Original](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p0.png) | ![Result](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p1.png) |
+![Original](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p0.png)
+![Result](python/docs/report/final_report/figure/pixiv2_original_vs_manana_ct_b5/p1.png)
 
 ## Comparison with Related Work
 
@@ -88,22 +84,15 @@ These issues can be mitigated through a user-confirmation workflow with automati
 
 ## API Cost
 
-| Metric | Average | Total (155 requests) |
-|--------|---------|---------------------|
-| Total Tokens | 2,542.30 | 279,653 |
-| Total Cost | $0.14 | $15.77 |
+| Metric | Average |
+|--------|---------|
+| Total Tokens | 2,542.30 |
+| Total Cost | $0.14 |
 
 ## Tech Stack
 
 - **Backend**: Gemini Imagen 3 API
 - **Frontend**: Web application deployed on Vercel
-- **Data Collection**: gallery-dl for pixiv
-
-## Dataset
-
-Experiments were conducted on two manga works from pixiv:
-- 「合コンに行ったら女がいなかった話」 by 蒼川なな (18 pages, B&W)
-- 「神は友達が少ない」 by ピノ/エス (15 pages, featuring Genshin Impact characters)
 
 ## References
 
