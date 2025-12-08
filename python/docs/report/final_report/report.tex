@@ -1,0 +1,81 @@
+\documentclass[11pt, a4paper]{article}
+
+% 한국어 패키지
+\usepackage{kotex}
+\usepackage[utf8]{inputenc}
+
+% 기본 패키지
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{float}
+
+% 페이지 설정
+\geometry{
+    top=25mm,
+    bottom=25mm,
+    left=25mm,
+    right=25mm
+}
+
+% 코드 스타일 설정
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    showstringspaces=false,
+    tabsize=4
+}
+
+% 제목 형식 설정
+\titleformat{\section}{\Large\bfseries}{\thesection.}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection.}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection.}{1em}{}
+
+% 줄간격 설정
+\setstretch{1.3}
+
+% 헤더 설정
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{딥러닝 최종보고서}
+\fancyhead[R]{2024193011 신재완}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+% 제목 페이지
+\begin{titlepage}
+    \centering
+    \vspace*{3cm}
+    {\LARGE\bfseries 딥러닝 최종보고서}\\[2cm]
+    {\Large 전체 Page의 배경과 캐릭터 일관성을 유지하는\\Manga Colorization 과 Translation}\\[3cm]
+    {\large
+    학번: 2024193011\\[0.5cm]
+    이름: 신재완\\[2cm]
+    }
+    \vfill
+    {\large 2025년 12월 8일}
+\end{titlepage}
+
+% 목차
+\tableofcontents
+\newpage
+
+
+
+\end{document}
